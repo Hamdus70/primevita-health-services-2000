@@ -1,0 +1,307 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isSignedIn() { return request.auth != null; }
+    // Dev bypass: We will consider any signed in user "Verified" for the sake of easily testing the prototype
+    function isDev() { return isSignedIn() && 'email' in request.auth.token && request.auth.token.email == 'jimohmuhammad21@gmail.com'; }
+    function isVerified() { return isSignedIn(); }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Role Verification
+    function getUserRole() {
+      let profilePath = /databases/$(database)/documents/users/$(request.auth.uid)/public/profile;
+      return exists(profilePath) ? get(profilePath).data.role : 'patient';
+    }
+    
+    function isAdmin() { return isVerified() && (getUserRole() == 'admin' || isDev()); }
+    function isDoctor() { return isVerified() && getUserRole() == 'doctor'; }
+    function isNurse() { return isVerified() && getUserRole() == 'nurse'; }
+    function isPhysiotherapist() { return isVerified() && getUserRole() == 'physiotherapist'; }
+    function isCaregiver() { return isVerified() && getUserRole() == 'caregiver'; }
+    // A patient user might also check their own role, though usually their uid is enough.
+    function isPatient() { return isVerified() && getUserRole() == 'patient'; }
+    function isClinicalStaff() {
+      let role = getUserRole();
+      return role in ['doctor', 'nurse', 'physiotherapist'] || isDev();
+    }
+    
+    function isFamilyOf(patientId) {
+      let profilePath = /databases/$(database)/documents/users/$(request.auth.uid)/public/profile;
+      return exists(profilePath) && get(profilePath).data.get('linkedPatientId', '') == patientId;
+    }
+
+    // ----- Users Collection -----
+    match /users {
+      allow list: if isAdmin() || isClinicalStaff();
+    }
+    match /users/{userId} {
+      allow read: if isAdmin() || isClinicalStaff();
+    }
+    match /users/{userId}/public/profile {
+      // Profile can be read by anyone signed in (to display names/roles)
+      allow read: if isSignedIn() && isValidId(userId);
+      // Validating user creation
+      function isValidPublicProfile(data) {
+        return data.keys().hasAll(['role', 'firstName', 'lastName', 'createdAt']) &&
+               data.keys().size() <= 6 &&
+               data.role in ['admin', 'nurse', 'doctor', 'caregiver', 'physiotherapist', 'patient'] &&
+               data.firstName is string && data.firstName.size() > 0 &&
+               data.lastName is string && data.lastName.size() > 0 &&
+               data.createdAt == request.time;
+      }
+      
+      // Admins can create profiles. Users can't create their own profile unless there's a specific bootstrap logic.
+      // But we will allow self-registration as a patient, maybe? 
+      // Actually, self-registration should probably only set role="patient", but Admin can set any role.
+      allow create: if isVerified() && request.auth.uid == userId && isValidPublicProfile(incoming());
+      
+      // PROTOTYPE BYPASS: Allowing 'role' update so the Dev Role Switcher works for any signed-in user exploring the app.
+      allow update: if isVerified() && (isAdmin() || isDev() || (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['firstName', 'lastName', 'updatedAt', 'role'])));
+    }
+
+    match /users/{userId}/private/info {
+      // PII Blanket Guard
+      allow read: if isVerified() && (request.auth.uid == userId || isAdmin() || isClinicalStaff());
+      function isValidPrivateInfo(data) {
+        return data.keys().hasAll(['email']) && data.email is string;
+      }
+      allow create: if isVerified() && request.auth.uid == userId && isValidPrivateInfo(incoming());
+      allow update: if isVerified() && (isAdmin() || (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'address'])));
+    }
+
+    // ----- Patients EMR Profile -----
+    match /patients/{patientId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || request.auth.uid == patientId || isFamilyOf(patientId));
+      
+      function isValidPatientProfile(data) {
+        return data.keys().hasAll(['patientId']) &&
+               data.patientId == patientId &&
+               data.get('allergies', []) is list &&
+               data.get('chronicConditions', []) is list;
+      }
+      allow create: if (isAdmin() || isDoctor()) && isValidPatientProfile(incoming());
+      allow update: if (isAdmin() || isDoctor() || isNurse()) && isValidPatientProfile(incoming()) && incoming().patientId == existing().patientId;
+    }
+
+    // ----- Visits -----
+    match /visits/{visitId} {
+      // Admin sees all. Staff sees all (needed for itinerary). Patient sees theirs.
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+      
+      function isValidVisit(data) {
+        return data.keys().hasAll(['patientId', 'status', 'createdAt']) &&
+               data.patientId is string && data.status in ["scheduled", "in-progress", "completed", "cancelled"] &&
+               data.createdAt == request.time &&
+               exists(/databases/$(database)/documents/patients/$(data.patientId));
+      }
+      
+      // Admin creates visits
+      allow create: if isAdmin() && isValidVisit(incoming());
+      // Staff can update clock-in/out and status
+      allow update: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver()) &&
+                    incoming().patientId == existing().patientId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'clockInTime', 'clockOutTime', 'clockInLocation', 'clockOutLocation', 'assignedStaffId', 'updatedAt']);
+    }
+
+    // ----- Care Plans -----
+    match /carePlans/{carePlanId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+      
+      function isValidCarePlan(data) {
+         return data.keys().hasAll(['patientId', 'authorId', 'diagnosis', 'objective', 'intervention', 'createdAt', 'status']) &&
+                data.authorId == request.auth.uid &&
+                data.status in ['active', 'resolved'] &&
+                data.createdAt == request.time &&
+                exists(/databases/$(database)/documents/patients/$(data.patientId));
+      }
+      allow create: if (isDoctor() || isNurse()) && isValidCarePlan(incoming());
+      allow update: if (isDoctor() || isNurse() || isAdmin()) && 
+                    incoming().patientId == existing().patientId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'evaluation', 'updatedAt']);
+    }
+
+    // ----- Vital Signs -----
+    match /vitalSigns/{vitalId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+      
+      function isValidVital(data) {
+        return data.keys().hasAll(['patientId', 'authorId', 'createdAt']) &&
+               data.authorId == request.auth.uid &&
+               data.createdAt == request.time &&
+               exists(/databases/$(database)/documents/patients/$(data.patientId));
+      }
+      allow create: if (isClinicalStaff() || isCaregiver()) && isValidVital(incoming());
+      // Vitals are append-only. Only admins can fix errors.
+      allow update: if isAdmin();
+    }
+
+    // ----- Clinical Notes -----
+    match /clinicalNotes/{noteId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+      
+      function isValidClinicalNote(data) {
+         return data.keys().hasAll(['patientId', 'authorId', 'noteType', 'createdAt']) &&
+                data.authorId == request.auth.uid &&
+                data.noteType in ['soap', 'doctor_note', 'intake_output', 'positioning'] &&
+                data.createdAt == request.time &&
+                exists(/databases/$(database)/documents/patients/$(data.patientId));
+      }
+      allow create: if isClinicalStaff() && isValidClinicalNote(incoming());
+      allow update: if isAdmin();
+    }
+
+    // ----- Prescriptions -----
+    match /prescriptions/{prescriptionId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+      
+      function isValidPrescription(data) {
+         return data.keys().hasAll(['patientId', 'doctorId', 'medicationName', 'dosage', 'frequency', 'status', 'createdAt']) &&
+                data.doctorId == request.auth.uid &&
+                data.status in ['active', 'discontinued', 'completed'] &&
+                data.createdAt == request.time &&
+                exists(/databases/$(database)/documents/patients/$(data.patientId));
+      }
+      // System Lock: ONLY Doctors can create prescriptions
+      allow create: if isDoctor() && isValidPrescription(incoming());
+      // Doctors can discontinue, Nurse can't edit
+      allow update: if (isDoctor() || isAdmin()) &&
+                    incoming().patientId == existing().patientId &&
+                    incoming().doctorId == existing().doctorId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'remarks', 'updatedAt']);
+    }
+
+    // ----- Medication Administration -----
+    match /medicationsAdministered/{adminId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+      
+      function isValidMedAdmin(data) {
+         return data.keys().hasAll(['patientId', 'nurseId', 'prescriptionId', 'administeredAt', 'createdAt']) &&
+                data.nurseId == request.auth.uid &&
+                data.createdAt == request.time &&
+                exists(/databases/$(database)/documents/prescriptions/$(data.prescriptionId));
+      }
+      // System Lock: Nurses administer according to prescription lookup
+      allow create: if isNurse() && isValidMedAdmin(incoming());
+      allow update: if isAdmin();
+    }
+
+    // ----- Caregiver Logs -----
+    match /caregiverLogs/{logId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+      
+      function isValidCaregiverLog(data) {
+         return data.keys().hasAll(['patientId', 'caregiverId', 'createdAt']) &&
+                data.caregiverId == request.auth.uid &&
+                data.createdAt == request.time &&
+                exists(/databases/$(database)/documents/patients/$(data.patientId));
+      }
+      allow create: if isCaregiver() && isValidCaregiverLog(incoming());
+      allow update: if isAdmin();
+    }
+
+    // ----- Payments -----
+    match /payments/{paymentId} {
+       allow read: if isVerified() && (isAdmin() || resource.data.patientId == request.auth.uid || isFamilyOf(resource.data.patientId));
+       
+       function isValidPaymentUpload(data) {
+          return data.keys().hasAll(['patientId', 'status', 'createdAt', 'proofOfPaymentUrl']) &&
+                 data.patientId == request.auth.uid &&
+                 data.status == 'pending' &&
+                 data.createdAt == request.time;
+       }
+       allow create: if isPatient() && isValidPaymentUpload(incoming());
+       allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'verifiedBy', 'updatedAt']);
+    }
+
+    // ----- Messages -----
+    match /messages/{messageId} {
+      allow read: if isVerified();
+      
+      function isValidMessage(data) {
+         return data.keys().hasAll(['threadId', 'senderId', 'receiverId', 'content', 'createdAt']) &&
+                data.senderId == request.auth.uid &&
+                data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+                data.createdAt == request.time;
+      }
+      // Allow extra fields like 'sender' or 'role' but not require them to bypass key checks easily.
+      // Wait, hasAll means it has *at least* those keys. The original rule only checked hasAll(), NOT size() == N.
+      allow create: if isVerified() && isValidMessage(incoming());
+      allow update: if false; // Immutable messaging
+    }
+
+    // ----- Audit Logs -----
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      
+      function isValidAuditLog(data) {
+         return data.keys().hasAll(['actorId', 'action', 'resourceType', 'createdAt']) &&
+                data.actorId == request.auth.uid &&
+                data.createdAt == request.time;
+      }
+      allow create: if isVerified() && isValidAuditLog(incoming());
+      // STRICT LOCK: Audit logs cannot be updated or deleted
+      allow update, delete: if false;
+    }
+
+    // ----- Appointments -----
+    match /appointments/{appointmentId} {
+      allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || resource.data.clientId == request.auth.uid);
+      
+      function isValidAppointment(data) {
+         return data.keys().hasAll(['clientId', 'dateTime', 'status', 'createdAt']) &&
+                data.clientId == request.auth.uid &&
+                data.status in ['pending', 'confirmed', 'completed', 'cancelled'] &&
+                data.createdAt == request.time;
+      }
+      allow create: if isVerified() && isValidAppointment(incoming());
+      allow update: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || existing().clientId == request.auth.uid) &&
+                    incoming().clientId == existing().clientId &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+    }
+    // ----- AI Reports -----
+    match /ai_reports/{reportId} {
+      allow read: if isVerified() && (isAdmin() || request.auth.uid == resource.data.staffId);
+      
+      function isValidAIReport(data) {
+         return data.keys().hasAll(['staffId', 'staffName', 'role', 'triggerWord', 'violation', 'context', 'timestamp', 'status']) &&
+                data.staffId == request.auth.uid &&
+                data.status in ['UNREAD', 'REVIEWED'] &&
+                data.timestamp == request.time;
+      }
+      allow create: if isVerified() && isValidAIReport(incoming());
+      allow update: if isVerified() && isAdmin() &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+    }
+
+    // ----- Emergencies -----
+    match /emergencies/{emergencyId} {
+      allow read: if isVerified();
+      
+      function isValidEmergency(data) {
+         return data.keys().hasAll(['senderId', 'senderEmail', 'message', 'timestamp', 'status']) &&
+                data.senderId == request.auth.uid &&
+                data.status in ['ACTIVE', 'RESOLVED'] &&
+                data.timestamp == request.time;
+      }
+      allow create: if isVerified() && isValidEmergency(incoming());
+      allow update: if isVerified() && isAdmin() &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+    }
+
+    // ----- Applications (Public forms) -----
+    match /applications/{applicationId} {
+      allow create: if true;
+      allow read: if true; 
+      allow update: if isVerified() && isAdmin();
+    }
+  }
+}

@@ -1,0 +1,9 @@
+import { withApiHandler } from "@/lib/api/with-api-handler";
+import { ClinicalService } from "@/services";
+import { CarePlanSchema } from "@/lib/validation/clinical";
+
+export const POST = withApiHandler(async (req, ctx) => {
+  const staffId = ctx.user.staffId!;
+  const role = ctx.user.role;
+  return await ClinicalService.createCarePlan(ctx.validData, staffId, role);
+}, { requireStaff: true, schema: CarePlanSchema, auditTable: "CarePlan" });

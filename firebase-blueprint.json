@@ -1,0 +1,347 @@
+{
+  "entities": {
+    "ContactInquiry": {
+      "title": "Contact Inquiry",
+      "description": "Public contact form submission",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "inquiryType": { "type": "string" },
+        "message": { "type": "string" },
+        "locationType": { "type": "string" },
+        "requestedDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["firstName", "lastName", "email", "inquiryType", "createdAt"]
+    },
+    "CareRequest": {
+      "title": "Care Request",
+      "description": "Initial patient onboarding assessment form",
+      "type": "object",
+      "properties": {
+        "patientName": { "type": "string" },
+        "age": { "type": "string" },
+        "gender": { "type": "string" },
+        "primaryCondition": { "type": "string" },
+        "mobilityStatus": { "type": "string" },
+        "requiresMedication": { "type": "string" },
+        "careType": { "type": "string" },
+        "contactName": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "preferredDate": { "type": "string" },
+        "painAreas": { "type": "array" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientName", "contactName", "contactPhone", "createdAt"]
+    },
+    "Referral": {
+      "title": "Referral",
+      "description": "Healthcare partner referral",
+      "type": "object",
+      "properties": {
+        "referrerName": { "type": "string" },
+        "referrerRole": { "type": "string" },
+        "hospitalName": { "type": "string" },
+        "referrerPhone": { "type": "string" },
+        "referrerEmail": { "type": "string" },
+        "patientName": { "type": "string" },
+        "patientPhone": { "type": "string" },
+        "careRequired": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["referrerName", "hospitalName", "patientName", "diagnosis", "createdAt"]
+    },
+    "UserPublic": {
+      "title": "User Public Profile",
+      "description": "Public basic info of the user",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["admin", "nurse", "doctor", "caregiver", "physiotherapist", "patient"] },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role", "firstName", "lastName", "createdAt"]
+    },
+    "UserPrivate": {
+      "title": "User Private Info",
+      "description": "PII such as email, phone",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "PatientMedicalProfile": {
+      "title": "Patient Medical Profile",
+      "description": "Centralized medical profile for the patient",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "dateOfBirth": { "type": "string" },
+        "gender": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "allergies": { "type": "array" },
+        "chronicConditions": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId"]
+    },
+    "Visit": {
+      "title": "Visit / Appointment",
+      "description": "A scheduled home care visit",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "assignedStaffId": { "type": "string" },
+        "scheduledTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["scheduled", "in-progress", "completed", "cancelled"] },
+        "clockInTime": { "type": "string", "format": "date-time" },
+        "clockOutTime": { "type": "string", "format": "date-time" },
+        "clockInLocation": { "type": "string" },
+        "clockOutLocation": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "assignedStaffId", "status", "createdAt"]
+    },
+    "CarePlan": {
+      "title": "Care Plan",
+      "description": "A care plan consisting of diagnosis, objective, action/intervention, and evaluation",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "objective": { "type": "string" },
+        "intervention": { "type": "string" },
+        "evaluation": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "authorId", "diagnosis", "objective", "intervention", "createdAt"]
+    },
+    "VitalSign": {
+      "title": "Vital Signs Record",
+      "description": "Vitals recorded by a nurse, doctor or PT",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "visitId": { "type": "string" },
+        "context": { "type": "string", "enum": ["routine", "before_procedure", "after_procedure", "urgent"] },
+        "bloodPressure": { "type": "string" },
+        "heartRate": { "type": "string" },
+        "temperature": { "type": "string" },
+        "spO2": { "type": "string" },
+        "respiratoryRate": { "type": "string" },
+        "fbsRbs": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "authorId", "createdAt"]
+    },
+    "ClinicalNote": {
+      "title": "Clinical Note",
+      "description": "SOAP, intake/output, or general doctor/nurse notes",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "visitId": { "type": "string" },
+        "noteType": { "type": "string", "enum": ["soap", "doctor_note", "intake_output", "positioning"] },
+        "subjective": { "type": "string" },
+        "objective": { "type": "string" },
+        "assessment": { "type": "string" },
+        "plan": { "type": "string" },
+        "intakeOutputDetails": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "authorId", "noteType", "createdAt"]
+    },
+    "Prescription": {
+      "title": "Prescription",
+      "description": "Medication prescribed by a doctor",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "doctorId": { "type": "string" },
+        "medicationName": { "type": "string" },
+        "dosage": { "type": "string" },
+        "frequency": { "type": "string" },
+        "route": { "type": "string" },
+        "remarks": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "discontinued", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "doctorId", "medicationName", "dosage", "frequency", "status", "createdAt"]
+    },
+    "MedicationAdministration": {
+      "title": "Medication Administration",
+      "description": "Log of medication given by nurse",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "nurseId": { "type": "string" },
+        "prescriptionId": { "type": "string" },
+        "administeredAt": { "type": "string", "format": "date-time" },
+        "remarks": { "type": "string" }
+      },
+      "required": ["patientId", "nurseId", "prescriptionId", "administeredAt"]
+    },
+    "CaregiverLog": {
+      "title": "Caregiver Daily Log",
+      "description": "ADL checklist tracking",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "caregiverId": { "type": "string" },
+        "visitId": { "type": "string" },
+        "feeding": { "type": "string", "enum": ["independent", "assisted", "dependent", "not_applicable"] },
+        "bathing": { "type": "string", "enum": ["independent", "assisted", "dependent", "not_applicable"] },
+        "mobility": { "type": "string", "enum": ["independent", "assisted", "dependent", "not_applicable"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "caregiverId", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Patient payment upload/verification",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "amount": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "proofOfPaymentUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "verifiedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "status", "createdAt"]
+    },
+    "Message": {
+      "title": "Secure Message",
+      "description": "Asynchronous secure message",
+      "type": "object",
+      "properties": {
+        "threadId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["threadId", "senderId", "receiverId", "content", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "System Audit Log",
+      "description": "Immutable system log",
+      "type": "object",
+      "properties": {
+        "actorId": { "type": "string" },
+        "action": { "type": "string" },
+        "resourceType": { "type": "string" },
+        "resourceId": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorId", "action", "resourceType", "createdAt"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "Staff or Patient Application submitted via the portal",
+      "type": "object",
+      "properties": {
+        "appType": { "type": "string", "enum": ["patient", "staff"] },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending Review", "Interview Scheduled", "Approved", "Rejected"] },
+        "patientGeneratedId": { "type": "string" },
+        "trackingToken": { "type": "string" },
+        "formDataSnapshot": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["appType", "fullName", "email", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/care_requests/{requestId}": {
+      "schema": { "$ref": "CareRequest" },
+      "description": "Initial onboarding assessments"
+    },
+    "/referrals/{referralId}": {
+      "schema": { "$ref": "Referral" },
+      "description": "Healthcare partner referrals"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "ContactInquiry" },
+      "description": "Inquiries from Contact Us page (mixed with Secure Messages using structural differences)"
+    },
+    "/users/{userId}/public/profile": {
+      "schema": { "$ref": "UserPublic" },
+      "description": "Public basic profile for roles"
+    },
+    "/users/{userId}/private/info": {
+      "schema": { "$ref": "UserPrivate" },
+      "description": "Private PII info for users"
+    },
+    "/applications/{applicationId}": {
+      "schema": { "$ref": "Application" },
+      "description": "Pending and approved applications"
+    },
+    "/patients/{patientId}": {
+      "schema": { "$ref": "PatientMedicalProfile" },
+      "description": "Central medical profile"
+    },
+    "/visits/{visitId}": {
+      "schema": { "$ref": "Visit" },
+      "description": "Appointments and visits"
+    },
+    "/carePlans/{carePlanId}": {
+      "schema": { "$ref": "CarePlan" },
+      "description": "Patient care plans"
+    },
+    "/vitalSigns/{vitalId}": {
+      "schema": { "$ref": "VitalSign" },
+      "description": "Vital signs records"
+    },
+    "/clinicalNotes/{noteId}": {
+      "schema": { "$ref": "ClinicalNote" },
+      "description": "Doctor, Nurse and PT clinical notes"
+    },
+    "/prescriptions/{prescriptionId}": {
+      "schema": { "$ref": "Prescription" },
+      "description": "Active and past prescriptions"
+    },
+    "/medicationsAdministered/{adminId}": {
+      "schema": { "$ref": "MedicationAdministration" },
+      "description": "Logs of applied medication"
+    },
+    "/caregiverLogs/{logId}": {
+      "schema": { "$ref": "CaregiverLog" },
+      "description": "Daily caregiver logs"
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "Payment" },
+      "description": "Uploaded payments awaiting verification"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "Message" },
+      "description": "Secure messages"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "AuditLog" },
+      "description": "System-wide immutable audit trail"
+    }
+  }
+}

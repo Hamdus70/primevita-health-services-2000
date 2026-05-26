@@ -1,0 +1,998 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_NEON")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  NURSE
+  DOCTOR
+  CAREGIVER
+  PHYSIOTHERAPIST
+  ADMIN
+  SUPER_ADMIN
+  ACCOUNTANT
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  INTERVIEW_SCHEDULED
+}
+
+enum UserType {
+  PATIENT
+  STAFF
+}
+
+enum CarePlanStatus {
+  ACTIVE
+  COMPLETED
+  DISCONTINUED
+}
+
+enum MedicationFrequency {
+  BD
+  TDS
+  QDS
+  PRN
+}
+
+enum MedicationAdministrationStatus {
+  PENDING
+  GIVEN
+  MISSED
+  HELD
+}
+
+enum Shift {
+  MORNING
+  AFTERNOON
+  NIGHT
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  TRANSFERRED
+}
+
+enum WorkflowStage {
+  REGISTRATION_COMPLETE
+  QUICK_ASSESSMENT_PENDING
+  QUICK_ASSESSMENT_SUBMITTED
+  ASSIGNMENT_PENDING
+  FIRST_VISIT_PENDING
+  VISIT_IN_PROGRESS
+  VITALS_COMPLETED
+  CARE_PLAN_PENDING
+  CARE_PLAN_COMPLETED
+  MEDICATION_PENDING
+  MEDICATION_ACTIVE
+  REVIEW_REQUIRED
+  DISCHARGE_PENDING
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  OFF_DUTY
+}
+
+enum StaffActionType {
+  VITALS_DOCUMENTED
+  CARE_PLAN_CREATED
+  NURSING_NOTE_CREATED
+  DOCTOR_NOTE_CREATED
+  MEDICATION_PRESCRIBED
+  MEDICATION_ADMINISTERED
+  INTAKE_OUTPUT_UPDATED
+  PATIENT_REVIEWED
+}
+
+enum AIInvestigationType {
+  TRIAGE_ANALYSIS
+  CLINICAL_SUMMARY
+  PRESCRIPTION_SAFETY_CHECK
+  CARE_PLAN_SUGGESTION
+  DIAGNOSTIC_SUPPORT
+  VITALS_ANOMALY_DETECTION
+}
+
+enum AISeverityLevel {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum AIReviewStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  REJECTED
+  PARTIALLY_ACCEPTED
+}
+
+enum BillingStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethodType {
+  CASH
+  BANK_TRANSFER
+  CARD
+  MOBILE_MONEY
+  INSURANCE
+}
+
+enum ReminderStatus {
+  SCHEDULED
+  SENT
+  FAILED
+}
+
+enum AdminNotificationType {
+  NEW_PATIENT_REGISTRATION
+  NEW_STAFF_APPLICATION
+  QUICK_ASSESSMENT_SUBMITTED
+  PAYMENT_DUE
+  PAYMENT_OVERDUE
+  INTERVIEW_SCHEDULED
+  STAFF_APPROVED
+}
+
+enum AnnouncementAudience {
+  ALL
+  STAFF_ONLY
+  PATIENT_ONLY
+  SELECTED_PATIENTS
+}
+
+enum AuditActionType {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  LOGIN
+  LOGOUT
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  ACCOUNT_LOCKED
+  SESSION_TIMEOUT
+  SESSION_INVALIDATED
+  FORCED_LOGOUT
+}
+
+model PatientApplication {
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  first_name           String
+  middle_name          String?
+  last_name            String
+  date_of_birth        DateTime
+  email                String         @unique
+  phone_number         String         @unique
+  residential_address  String
+  emergency_contact_name String
+  emergency_contact_phone String
+  emergency_contact_relation String
+  approval_status      ApprovalStatus @default(PENDING)
+  created_at           DateTime       @default(now())
+  updated_at           DateTime       @updatedAt
+}
+
+// ==========================================
+// SEQUENCING MODELS
+// ==========================================
+
+model PatientSequence {
+  id          Int @id @default(1)
+  last_number Int @default(0)
+}
+
+model StaffSequence {
+  id          Int @id @default(1)
+  last_number Int @default(0)
+}
+
+// ==========================================
+// CORE IDENTITY MODELS
+// ==========================================
+
+model Patient {
+  id                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firebase_uid               String    @unique
+  patient_public_id          String    @unique @default(dbgenerated("gen_random_uuid()"))
+  patient_username           String    @unique // Format: CL-[INITIALS]-0001
+  first_name                 String
+  middle_name                String?
+  last_name                  String
+  date_of_birth              DateTime  @db.Date
+  age                        Int
+  gender                     String
+  marital_status             String?
+  phone_number               String
+  alternate_phone            String?
+  email                      String    @unique
+  residential_address        String
+  city                       String
+  state                      String
+  country                    String
+  nationality                String
+  profile_photo_url          String?
+  registration_date          DateTime  @default(now())
+  active_status              Boolean   @default(true)
+  onboarding_completed       Boolean   @default(false)
+  quick_assessment_completed Boolean   @default(false)
+  deleted_at                 DateTime?
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
+
+  // Relationships
+  emergency_contacts     PatientEmergencyContact[]
+  credential             UserCredential?
+  medical_profile        PatientMedicalProfile?
+  quick_assessments      QuickAssessment[]
+  vital_signs            VitalSign[]
+  care_plans             CarePlan[]
+  medication_charts      MedicationChart[]
+  intake_outputs         IntakeOutputRecord[]
+  nursing_reports        NursingReport[]
+  doctor_notes           DoctorNote[]
+  assignments            PatientAssignment[]
+  workflow_statuses      PatientWorkflowStatus[]
+  service_logs           StaffServiceLog[]
+  ai_investigations      AIInvestigationRecord[]
+  payment_records        PaymentRecord[]
+  invoices               Invoice[]
+  payment_reminders      PaymentReminder[]
+  admin_notifications    AdminNotification[]
+  announcements_received TargetedAnnouncementRecipient[]
+
+  @@index([patient_username])
+  @@index([last_name])
+  @@index([phone_number])
+  @@index([active_status, created_at])
+  @@index([last_name, first_name])
+  @@index([firebase_uid])
+}
+
+model PatientEmergencyContact {
+  id                              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id                      String   @db.Uuid
+  contact_full_name               String
+  relationship_to_patient         String
+  primary_phone                   String
+  secondary_phone                 String?
+  email                           String?
+  address                         String?
+  city                            String?
+  state                           String?
+  occupation                      String?
+  decision_maker                  Boolean  @default(false)
+  authorised_for_medical_decision Boolean  @default(false)
+  notes                           String?
+  created_at                      DateTime @default(now())
+  updated_at                      DateTime @updatedAt
+
+  // Relationships
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([patient_id])
+}
+
+model Staff {
+  id                          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firebase_uid                String         @unique
+  staff_public_id             String         @unique @default(dbgenerated("gen_random_uuid()"))
+  staff_id_format             String         @unique // Format: HSP-[ROLE]-0001
+  role                        Role
+  approval_status             ApprovalStatus @default(PENDING)
+  first_name                  String
+  middle_name                 String?
+  last_name                   String
+  gender                      String
+  date_of_birth               DateTime       @db.Date
+  age                         Int
+  phone_number                String
+  alternate_phone             String?
+  email                       String         @unique
+  address                     String
+  passport_photo_url          String?
+  professional_license_number String?
+  employment_status           String?
+  onboarding_completed        Boolean        @default(false)
+  active_status               Boolean        @default(true)
+  deleted_at                  DateTime?
+  created_at                  DateTime       @default(now())
+  updated_at                  DateTime       @updatedAt
+
+  // Relationships
+  guarantor                   StaffGuarantor?
+  credential                  UserCredential?
+  vital_signs                 VitalSign[]
+  care_plans                  CarePlan[]
+  medications_prescribed      MedicationChart[]        @relation("PrescribingDoctor")
+  medications_administered    MedicationChart[]        @relation("AdministeringNurse")
+  intake_outputs              IntakeOutputRecord[]
+  nursing_reports             NursingReport[]
+  doctor_notes                DoctorNote[]
+  assignments                 PatientAssignment[]
+  triggered_workflow_statuses PatientWorkflowStatus[]
+  attendances                 StaffAttendance[]
+  service_logs                StaffServiceLog[]
+  monthly_summaries           StaffMonthlySummary[]
+  triggered_ai_investigations AIInvestigationRecord[]
+  ai_reviews                  AIClinicianReview[]
+  admin_notifications         AdminNotification[]
+  application_reviews         StaffApplicationReview[]
+  interview_schedules         InterviewSchedule[]
+
+  @@index([role])
+  @@index([approval_status])
+  @@index([last_name])
+  @@index([approval_status, role])
+  @@index([active_status, role])
+  @@index([firebase_uid])
+}
+
+model StaffGuarantor {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id               String   @unique @db.Uuid
+  guarantor_full_name    String
+  relationship_to_staff  String
+  occupation             String
+  employer               String?
+  phone_number           String
+  alternate_phone        String?
+  email                  String?
+  address                String
+  government_id_type     String
+  government_id_number   String
+  guarantor_document_url String?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  // Relationships
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@index([staff_id])
+}
+
+model UserCredential {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  linked_user_type UserType
+
+  // Idiomatic Prisma Polymorphism
+  patient_id String? @unique @db.Uuid
+  staff_id   String? @unique @db.Uuid // approval required before staff login
+
+  username                String    @unique
+  password_hash           String
+  account_locked          Boolean   @default(false)
+  failed_login_attempts   Int       @default(0)
+  password_reset_required Boolean   @default(false)
+  session_version         Int       @default(1)
+  force_logout            Boolean   @default(false)
+  last_logout_at          DateTime?
+  last_login_at           DateTime?
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+
+  // Relationships
+  patient Patient? @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff?   @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@index([username])
+  @@index([patient_id])
+  @@index([staff_id])
+  @@index([session_version])
+}
+
+// ==========================================
+// EMAIL TRACKING & OTP
+// ==========================================
+
+model OtpCode {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String
+  code       String
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@index([email])
+}
+
+model TrackingToken {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email      String
+  token      String   @unique
+  created_at DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+// ==========================================
+// EMR CLINICAL MODELS
+// ==========================================
+
+model PatientMedicalProfile {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id           String   @unique @db.Uuid
+  blood_group          String?
+  genotype             String?
+  allergies            String?
+  chronic_conditions   String?
+  current_medications  String?
+  past_medical_history String?
+  surgical_history     String?
+  family_history       String?
+  immunisation_history String?
+  lifestyle_notes      String?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([patient_id])
+}
+
+model QuickAssessment {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id            String   @db.Uuid
+  symptoms              String
+  condition_description String?
+  pain_level            Int? // Validate 1-10 in API layer
+  clinical_notes        String?
+  submitted_by_patient  Boolean  @default(false)
+  submitted_at          DateTime @default(now())
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([patient_id])
+  @@index([submitted_at])
+  @@index([patient_id, submitted_at])
+}
+
+model VitalSign {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id           String   @db.Uuid
+  recorded_by_staff_id String   @db.Uuid
+  temperature          Float?
+  systolic_bp          Int?
+  diastolic_bp         Int?
+  pulse_rate           Int?
+  respiratory_rate     Int?
+  oxygen_saturation    Float?
+  blood_glucose        Float?
+  weight               Float?
+  height               Float?
+  bmi                  Float?
+  notes                String?
+  recorded_at          DateTime @default(now())
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [recorded_by_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([patient_id])
+  @@index([recorded_by_staff_id])
+  @@index([recorded_at])
+  @@index([patient_id, recorded_at])
+}
+
+model CarePlan {
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id          String         @db.Uuid
+  created_by_staff_id String         @db.Uuid
+  nursing_problem     String
+  goal                String
+  interventions       String
+  evaluation          String?
+  status              CarePlanStatus @default(ACTIVE)
+  start_date          DateTime
+  end_date            DateTime?
+  deleted_at          DateTime?
+  created_at          DateTime       @default(now())
+  updated_at          DateTime       @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [created_by_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([patient_id])
+  @@index([status])
+}
+
+model MedicationChart {
+  id                       String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id               String                         @db.Uuid
+  prescribed_by_staff_id   String                         @db.Uuid // prescribed_by_staff_id must be DOCTOR
+  administered_by_staff_id String?                        @db.Uuid // administered_by_staff_id should be NURSE
+  drug_name                String
+  dosage                   String
+  route                    String
+  frequency                MedicationFrequency
+  duration                 String?
+  start_date               DateTime
+  end_date                 DateTime?
+  administration_status    MedicationAdministrationStatus @default(PENDING)
+  administration_notes     String?
+  administered_at          DateTime?
+  deleted_at               DateTime?
+  created_at               DateTime                       @default(now())
+  updated_at               DateTime                       @updatedAt
+
+  patient             Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  prescribing_doctor  Staff   @relation("PrescribingDoctor", fields: [prescribed_by_staff_id], references: [id], onDelete: Restrict)
+  administering_nurse Staff?  @relation("AdministeringNurse", fields: [administered_by_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([patient_id])
+  @@index([administration_status])
+  @@index([start_date])
+  @@index([patient_id, administration_status])
+  @@index([prescribed_by_staff_id, start_date])
+}
+
+model IntakeOutputRecord {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id           String   @db.Uuid
+  recorded_by_staff_id String   @db.Uuid
+  intake_type          String?
+  intake_volume_ml     Float?
+  output_type          String?
+  output_volume_ml     Float?
+  net_balance_ml       Float?
+  notes                String?
+  recorded_at          DateTime @default(now())
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [recorded_by_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([patient_id])
+  @@index([recorded_at])
+}
+
+model NursingReport {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id           String   @db.Uuid
+  authored_by_staff_id String   @db.Uuid
+  report_text          String
+  shift                Shift
+  report_date          DateTime @db.Date
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [authored_by_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([patient_id])
+  @@index([report_date])
+}
+
+model DoctorNote {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id             String   @db.Uuid
+  authored_by_staff_id   String   @db.Uuid // Must be role = DOCTOR (enforce in API)
+  diagnosis              String
+  treatment_plan         String
+  orders                 String?
+  prescription_notes     String?
+  follow_up_instructions String?
+  note_date              DateTime @default(now())
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [authored_by_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([patient_id])
+  @@index([note_date])
+}
+
+// ==========================================
+// ASSIGNMENT & WORKFLOW MODELS
+// ==========================================
+
+model PatientAssignment {
+  id                           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id                   String           @db.Uuid
+  staff_id                     String           @db.Uuid
+  assigned_role                Role
+  assigned_by_admin_identifier String
+  assignment_reason            String?
+  assignment_notes             String?
+  assignment_status            AssignmentStatus @default(ACTIVE)
+  assigned_at                  DateTime         @default(now())
+  assignment_start_date        DateTime
+  assignment_end_date          DateTime?
+  deleted_at                   DateTime?
+  created_at                   DateTime         @default(now())
+  updated_at                   DateTime         @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [staff_id], references: [id], onDelete: Restrict) // Ensure one active assignment per patient/role (enforce in API)
+
+  @@index([patient_id, assigned_role, assignment_status])
+  @@index([patient_id])
+  @@index([patient_id, assignment_status])
+  @@index([staff_id])
+  @@index([staff_id, assignment_status])
+  @@index([assigned_role])
+  @@index([assignment_status])
+  @@index([assigned_at])
+}
+
+model PatientWorkflowStatus {
+  id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id              String        @db.Uuid
+  workflow_stage          WorkflowStage
+  status_notes            String?
+  triggered_by_staff_id   String?       @db.Uuid
+  triggered_automatically Boolean       @default(false)
+  status_started_at       DateTime      @default(now())
+  status_completed_at     DateTime?
+  created_at              DateTime      @default(now())
+  updated_at              DateTime      @updatedAt
+
+  patient Patient @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff   Staff?  @relation(fields: [triggered_by_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([patient_id])
+  @@index([workflow_stage])
+  @@index([status_started_at])
+}
+
+// ==========================================
+// STAFF OPERATIONS MODELS
+// ==========================================
+
+model StaffAttendance {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id             String           @db.Uuid
+  attendance_date      DateTime         @db.Date
+  attendance_status    AttendanceStatus
+  login_time           DateTime?
+  first_activity_time  DateTime?
+  last_activity_time   DateTime?
+  marked_automatically Boolean          @default(false)
+  auto_marked_at       DateTime?
+  attendance_notes     String?
+  created_at           DateTime         @default(now())
+  updated_at           DateTime         @updatedAt
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@unique([staff_id, attendance_date])
+  @@index([staff_id])
+  @@index([attendance_date])
+  @@index([staff_id, attendance_date])
+  @@index([attendance_status])
+}
+
+model StaffServiceLog {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id            String          @db.Uuid
+  patient_id          String?         @db.Uuid
+  action_type         StaffActionType
+  action_description  String
+  related_record_type String?
+  related_record_id   String?
+  action_timestamp    DateTime        @default(now())
+  created_at          DateTime        @default(now())
+
+  staff   Staff    @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+  patient Patient? @relation(fields: [patient_id], references: [id], onDelete: SetNull)
+
+  @@index([staff_id])
+  @@index([patient_id])
+  @@index([action_type])
+  @@index([action_timestamp])
+}
+
+model StaffMonthlySummary {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id              String   @db.Uuid
+  summary_year          Int
+  summary_month         Int
+  total_present_days    Int      @default(0)
+  total_absent_days     Int      @default(0)
+  total_late_days       Int      @default(0)
+  total_off_duty_days   Int      @default(0)
+  total_service_actions Int      @default(0)
+  activity_score        Float    @default(0)
+  generated_at          DateTime @default(now())
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@unique([staff_id, summary_year, summary_month])
+  @@index([staff_id])
+  @@index([summary_year])
+  @@index([summary_month])
+}
+
+// ==========================================
+// AI INVESTIGATOR MODELS
+// ==========================================
+
+model AIInvestigationRecord {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id            String              @db.Uuid
+  triggered_by_staff_id String?             @db.Uuid
+  investigation_type    AIInvestigationType
+  input_context_summary String?
+  ai_response_text      String
+  ai_confidence_score   Float?
+  severity_level        AISeverityLevel
+  review_status         AIReviewStatus      @default(PENDING_REVIEW)
+  model_name            String?
+  prompt_version        String?
+  token_usage           Int?
+  processing_time_ms    Int?
+  generated_at          DateTime            @default(now())
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
+
+  patient  Patient             @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  staff    Staff?              @relation(fields: [triggered_by_staff_id], references: [id], onDelete: Restrict)
+  findings AIFinding[]
+  reviews  AIClinicianReview[]
+
+  @@index([patient_id])
+  @@index([triggered_by_staff_id])
+  @@index([investigation_type])
+  @@index([review_status])
+  @@index([generated_at])
+  @@index([patient_id, generated_at])
+  @@index([severity_level, review_status])
+}
+
+model AIFinding {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  investigation_id    String   @db.Uuid
+  finding_title       String
+  finding_description String
+  finding_category    String?
+  risk_level          String?
+  recommendation      String?
+  created_at          DateTime @default(now())
+
+  investigation AIInvestigationRecord @relation(fields: [investigation_id], references: [id], onDelete: Cascade)
+
+  @@index([investigation_id])
+  @@index([finding_category])
+}
+
+model AIClinicianReview {
+  id                        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  investigation_id          String         @db.Uuid
+  reviewer_staff_id         String         @db.Uuid
+  review_decision           AIReviewStatus
+  clinician_comment         String?
+  applied_to_patient_record Boolean        @default(false)
+  reviewed_at               DateTime       @default(now())
+  created_at                DateTime       @default(now())
+
+  investigation AIInvestigationRecord @relation(fields: [investigation_id], references: [id], onDelete: Cascade)
+  staff         Staff                 @relation(fields: [reviewer_staff_id], references: [id], onDelete: Restrict)
+
+  @@index([investigation_id])
+  @@index([reviewer_staff_id])
+}
+
+model StaffApplicationReview {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id          String         @db.Uuid
+  reviewed_by_admin String
+  review_status     ApprovalStatus
+  review_notes      String?
+  approval_reason   String?
+  rejection_reason  String?
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@index([staff_id])
+}
+
+model InterviewSchedule {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id           String   @db.Uuid
+  scheduled_by_admin String
+  interview_date     DateTime
+  interview_mode     String
+  interview_link     String?
+  interviewer_name   String?
+  interview_notes    String?
+  interview_status   String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@index([staff_id])
+  @@index([interview_date])
+}
+
+// ==========================================
+// ADMIN & FINANCIAL MODELS
+// ==========================================
+
+model PaymentRecord {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id            String            @db.Uuid
+  invoice_id            String            @db.Uuid
+  amount_paid           Float             @default(0)
+  payment_method        PaymentMethodType
+  transaction_reference String?
+  paid_at               DateTime?
+  payment_notes         String?
+  deleted_at            DateTime?
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+
+  patient   Patient           @relation(fields: [patient_id], references: [id], onDelete: Restrict)
+  invoice   Invoice           @relation(fields: [invoice_id], references: [id], onDelete: Restrict)
+  receipts  Receipt[]
+  reminders PaymentReminder[]
+
+  @@index([patient_id])
+  @@index([invoice_id])
+}
+
+model Invoice {
+  id                          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patient_id                  String        @db.Uuid
+  invoice_number              String        @unique
+  invoice_title               String
+  invoice_description         String?
+  total_amount                Float
+  issue_date                  DateTime      @db.Date
+  due_date                    DateTime      @db.Date
+  billing_status              BillingStatus @default(PENDING)
+  created_by_admin_identifier String
+  deleted_at                  DateTime?
+  created_at                  DateTime      @default(now())
+  updated_at                  DateTime      @updatedAt
+
+  patient         Patient         @relation(fields: [patient_id], references: [id], onDelete: Restrict)
+  payment_records PaymentRecord[]
+
+  @@index([invoice_number])
+  @@index([patient_id])
+  @@index([due_date])
+}
+
+model Receipt {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_record_id     String            @db.Uuid
+  receipt_number        String            @unique
+  payment_method        PaymentMethodType
+  transaction_reference String?
+  amount_received       Float
+  issued_at             DateTime          @default(now())
+  created_at            DateTime          @default(now())
+
+  payment_record PaymentRecord @relation(fields: [payment_record_id], references: [id], onDelete: Cascade)
+
+  @@index([receipt_number])
+  @@index([payment_record_id])
+}
+
+model PaymentReminder {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_record_id String         @db.Uuid
+  patient_id        String         @db.Uuid
+  reminder_type     String // e.g. TWO_DAY_BEFORE, ONE_DAY_BEFORE, DUE_TODAY
+  reminder_status   ReminderStatus @default(SCHEDULED)
+  scheduled_for     DateTime
+  sent_at           DateTime?
+  created_at        DateTime       @default(now())
+
+  payment_record PaymentRecord @relation(fields: [payment_record_id], references: [id], onDelete: Cascade)
+  patient        Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([patient_id])
+  @@index([scheduled_for])
+}
+
+model AdminNotification {
+  id                 String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  notification_type  AdminNotificationType
+  title              String
+  message            String
+  related_patient_id String?               @db.Uuid
+  related_staff_id   String?               @db.Uuid
+  is_read            Boolean               @default(false)
+  read_at            DateTime?
+  created_at         DateTime              @default(now())
+
+  patient Patient? @relation(fields: [related_patient_id], references: [id], onDelete: Cascade)
+  staff   Staff?   @relation(fields: [related_staff_id], references: [id], onDelete: Cascade)
+
+  @@index([notification_type])
+  @@index([is_read])
+  @@index([created_at])
+  @@index([is_read, created_at])
+}
+
+model Announcement {
+  id                          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                       String
+  message                     String
+  audience                    AnnouncementAudience
+  created_by_admin_identifier String
+  active_status               Boolean              @default(true)
+  start_date                  DateTime
+  end_date                    DateTime?
+  deleted_at                  DateTime?
+  created_at                  DateTime             @default(now())
+  updated_at                  DateTime             @updatedAt
+
+  targeted_recipients TargetedAnnouncementRecipient[]
+
+  @@index([audience])
+  @@index([active_status])
+  @@index([start_date])
+}
+
+model TargetedAnnouncementRecipient {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  announcement_id String    @db.Uuid
+  patient_id      String    @db.Uuid
+  delivered       Boolean   @default(false)
+  delivered_at    DateTime?
+  read_status     Boolean   @default(false)
+  read_at         DateTime?
+  created_at      DateTime  @default(now())
+
+  announcement Announcement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([patient_id])
+  @@index([announcement_id])
+}
+
+model AuditLog {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_identifier   String
+  actor_role         String
+  action_type        AuditActionType
+  affected_table     String
+  affected_record_id String?
+  old_value_json     Json?
+  new_value_json     Json?
+  ip_address         String?
+  user_agent         String?
+  created_at         DateTime        @default(now())
+
+  @@index([actor_identifier])
+  @@index([action_type])
+  @@index([affected_table])
+  @@index([created_at])
+}

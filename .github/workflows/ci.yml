@@ -1,0 +1,49 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Code Linting
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run Unit & Integration Tests
+        run: npm run test
+
+      - name: Verify Build
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://postgres:password@localhost:5432/test?schema=public"
+          NEXTAUTH_SECRET: "ci-secret-token"
+          NEXTAUTH_URL: "http://localhost:3000"
+          REDIS_URL: "redis://localhost:6379"
+          SUPABASE_URL: "https://test.supabase.co"
+          SUPABASE_ANON_KEY: "test"
+          SUPABASE_SERVICE_ROLE_KEY: "test"
+          SUPABASE_STORAGE_BUCKET: "test"
+          RESEND_API_KEY: "re_test"
+          TERMII_API_KEY: "test"
+          TERMII_SENDER_ID: "test"
+          GEMINI_API_KEY: "test"
+          NEXT_PUBLIC_GEMINI_API_KEY: "test"

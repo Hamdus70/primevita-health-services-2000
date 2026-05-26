@@ -1,0 +1,9 @@
+{
+  "name": "PrimeVita Health Services 2000",
+  "description": "A premium, compassionate healthcare service agency providing reliable, professional, and personalized home and assisted living support.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
