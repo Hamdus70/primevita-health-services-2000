@@ -9,11 +9,6 @@ import { Link } from 'react-router-dom';
 
 const slides = [
   {
-    title: 'Professional Home Care\nin Lagos',
-    subtitle: 'Qualified Nurses &\nCaregivers Available 24/7',
-    image: 'https://www.image2url.com/r2/default/images/1778073234752-b84ec824-7286-496d-b869-8168c437d061.jpg',
-  },
-  {
     title: 'Hire a Trusted Caregiver\nToday',
     subtitle: 'Reliable, compassionate daily support\nfor your beloved family members',
     image: 'https://www.image2url.com/r2/default/images/1778070733395-41884973-86b2-4d77-b466-626014118642.jpg',

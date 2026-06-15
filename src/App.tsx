@@ -35,7 +35,6 @@ import { ApplicationPortal } from '@/pages/ApplicationPortal';
 import ApplicationTracker from '@/pages/ApplicationTracker';
 import { RoleSwitcher } from '@/components/dev/RoleSwitcher';
 import { CommandPalette } from '@/components/CommandPalette';
-import { AccessibilityWidget } from '@/components/AccessibilityWidget';
 import { TelehealthChatWidget } from '@/components/TelehealthChatWidget';
 
 import TrackProgressPage from '@/pages/TrackProgressPage';
@@ -46,13 +45,13 @@ export default function App() {
         <div className="flex min-h-screen flex-col">
         <CommandPalette />
         <RoleSwitcher />
-        <AccessibilityWidget />
         <TelehealthChatWidget />
         <Toaster position="top-right" richColors />
         <Routes>
           {/* Public Website Routes */}
           <Route path="/" element={
             <>
+              <MissionVisionHeader />
               <TopBar />
               <Header />
               <main className="flex-1">
@@ -61,9 +60,9 @@ export default function App() {
               <Footer />
             </>
           } />
-          <Route path="/about" element={<><TopBar /><Header /><main className="flex-1"><AboutPage /></main><Footer /></>} />
-          <Route path="/book" element={<><TopBar /><Header /><main className="flex-1"><BookingPage /></main><Footer /></>} />
-          <Route path="/assessment" element={<><TopBar /><Header /><main className="flex-1"><AssessmentPage /></main><Footer /></>} />
+          <Route path="/about" element={<><MissionVisionHeader /><TopBar /><Header /><main className="flex-1"><AboutPage /></main><Footer /></>} />
+          <Route path="/book" element={<><MissionVisionHeader /><TopBar /><Header /><main className="flex-1"><BookingPage /></main><Footer /></>} />
+          <Route path="/assessment" element={<><MissionVisionHeader /><TopBar /><Header /><main className="flex-1"><AssessmentPage /></main><Footer /></>} />
           <Route path="/apply" element={<ApplicationPortal />} />
           <Route path="/track-application" element={<TrackProgressPage />} />
           <Route path="/track-application/:token" element={<ApplicationTracker />} />
