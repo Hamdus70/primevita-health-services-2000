@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 export function Header() {
   const { t, i18n } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isServicesExpanded, setIsServicesExpanded] = useState(false);
 
   // Initialize Google Translate
   useEffect(() => {
@@ -107,7 +108,23 @@ export function Header() {
           <div className="absolute top-full left-0 w-full bg-white border-t border-gray-100 p-4 shadow-lg lg:hidden z-50">
              <div className="flex flex-col gap-4 text-sm font-bold text-[#0e4e5e]">
                 <Link to="/about" onClick={() => setIsMenuOpen(false)}>ABOUT US</Link>
-                <Link to="/services" onClick={() => setIsMenuOpen(false)}>SERVICES</Link>
+                
+                <div className="flex flex-col gap-3">
+                    <button onClick={() => setIsServicesExpanded(!isServicesExpanded)} className="flex items-center justify-between">
+                         SERVICES <ChevronDown className={`w-4 h-4 transition-transform ${isServicesExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isServicesExpanded && (
+                        <div className="flex flex-col gap-2 pl-4 text-xs font-normal text-gray-600">
+                             <Link to="/services" onClick={() => setIsMenuOpen(false)}>All Services</Link>
+                             <Link to="/services/home-nursing" onClick={() => setIsMenuOpen(false)}>Home Nursing</Link>
+                             <Link to="/services/elderly-care" onClick={() => setIsMenuOpen(false)}>Elderly Care</Link>
+                             <Link to="/services/post-hospital-recovery" onClick={() => setIsMenuOpen(false)}>Post-Hospital Recovery</Link>
+                             <Link to="/services/dementia-care" onClick={() => setIsMenuOpen(false)}>Dementia Care</Link>
+                             <Link to="/services/physiotherapy" onClick={() => setIsMenuOpen(false)}>Physiotherapy</Link>
+                        </div>
+                    )}
+                </div>
+
                 <Link to="/faqs" onClick={() => setIsMenuOpen(false)}>FAQs</Link>
                 <Link to="/refer-patient" onClick={() => setIsMenuOpen(false)}>REFER PATIENT</Link>
                 <Link to="/apply" onClick={() => setIsMenuOpen(false)}>JOIN NETWORK</Link>

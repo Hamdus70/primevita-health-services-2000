@@ -1,29 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { FileText, User, Stethoscope, CheckCircle2, ChevronRight, Activity, MapPin, Mail, Phone, Calendar } from 'lucide-react';
+import { FileText, User, Stethoscope, CheckCircle2, ChevronRight, Activity, MapPin, Mail, Phone, Calendar, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useForm, ValidationError } from '@formspree/react';
 import { toast } from 'sonner';
 
 export function ReferralFormPage() {
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-      referrerName: '',
-      hospitalName: '',
-      referrerPhone: '',
-      referrerEmail: '',
-      patientName: '',
-      patientDob: '',
-      patientPhone: '',
-      patientEmail: '',
-      patientAddress: '',
-      diagnosis: '',
-      additionalNotes: ''
-  });
-  
+  const [formState, handleSubmit] = useForm('mjgdlaoq');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  
+  useEffect(() => {
+    if (formState.succeeded) {
+      toast.success("Referral submitted successfully!");
+    }
+  }, [formState.succeeded]);
 
   const toggleService = (service: string) => {
       setSelectedServices(prev => 
@@ -31,46 +21,7 @@ export function ReferralFormPage() {
       );
   };
 
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if(selectedServices.length === 0) {
-        toast.error("Please select at least one service.");
-        return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-        await addDoc(collection(db, 'referrals'), {
-            referrerName: formData.referrerName,
-            referrerRole: 'Physician', // Default or can be added to form
-            hospitalName: formData.hospitalName,
-            referrerPhone: formData.referrerPhone,
-            referrerEmail: formData.referrerEmail,
-            patientName: formData.patientName,
-            patientPhone: formData.patientPhone,
-            patientDob: formData.patientDob,
-            patientEmail: formData.patientEmail,
-            patientAddress: formData.patientAddress,
-            careRequired: selectedServices.join(', '),
-            diagnosis: formData.diagnosis,
-            additionalNotes: formData.additionalNotes,
-            status: 'Pending Review',
-            createdAt: serverTimestamp()
-        });
-        setIsSubmitted(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
-        toast.error("Failed to submit referral: " + err.message);
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-
-  if (isSubmitted) {
+  if (formState.succeeded) {
     return (
       <div className="container mx-auto px-4 py-24 max-w-2xl text-center">
         <motion.div 
@@ -138,28 +89,29 @@ export function ReferralFormPage() {
                     <label className="text-sm font-medium text-gray-700">Provider Name *</label>
                     <div className="relative">
                       <User className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input required name="referrerName" value={formData.referrerName} onChange={handleInput} type="text" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="Dr. Jane Smith" />
+                      <input required name="referrerName" type="text" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="Dr. Jane Smith" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Clinic / Hospital Name *</label>
                     <div className="relative">
                       <Activity className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input required name="hospitalName" value={formData.hospitalName} onChange={handleInput} type="text" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="City General Hospital" />
+                      <input required name="hospitalName" type="text" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="City General Hospital" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Phone Number *</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input required name="referrerPhone" value={formData.referrerPhone} onChange={handleInput} type="tel" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="+234 (0) 800 000 0000" />
+                      <input required name="referrerPhone" type="tel" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="+234 (0) 800 000 0000" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Email Address</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input type="email" name="referrerEmail" value={formData.referrerEmail} onChange={handleInput} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="dr.smith@example.com" />
+                      <input type="email" name="referrerEmail" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="dr.smith@example.com" />
+                      <ValidationError prefix="Email" field="referrerEmail" errors={formState.errors} />
                     </div>
                   </div>
                 </div>
@@ -177,34 +129,35 @@ export function ReferralFormPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Patient Full Name *</label>
-                    <input required name="patientName" value={formData.patientName} onChange={handleInput} type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="John Doe" />
+                    <input required name="patientName" type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="John Doe" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Date of Birth</label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input type="date" name="patientDob" value={formData.patientDob} onChange={handleInput} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" />
+                      <input type="date" name="patientDob" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Patient Phone *</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input required name="patientPhone" value={formData.patientPhone} onChange={handleInput} type="tel" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="+234 (0) 800 000 0000" />
+                      <input required name="patientPhone" type="tel" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="+234 (0) 800 000 0000" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Patient Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input type="email" name="patientEmail" value={formData.patientEmail} onChange={handleInput} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="john.doe@example.com" />
+                      <input type="email" name="patientEmail" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="john.doe@example.com" />
+                      <ValidationError prefix="Email" field="patientEmail" errors={formState.errors} />
                     </div>
                   </div>
                   <div className="md:col-span-2 space-y-2">
                     <label className="text-sm font-medium text-gray-700">Patient Address</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
-                      <input type="text" name="patientAddress" value={formData.patientAddress} onChange={handleInput} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="123 Care Avenue, Lagos, Nigeria" />
+                      <input type="text" name="patientAddress" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all" placeholder="123 Care Avenue, Lagos, Nigeria" />
                     </div>
                   </div>
                 </div>
@@ -230,7 +183,7 @@ export function ReferralFormPage() {
                     "Palliative & Hospice Care"
                   ].map((service) => (
                     <label key={service} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-slate-50 cursor-pointer transition-colors">
-                      <input type="checkbox" checked={selectedServices.includes(service)} onChange={() => toggleService(service)} className="w-5 h-5 rounded border-gray-300 text-[#10837f] focus:ring-[#10837f]" />
+                      <input type="checkbox" name="services" value={service} checked={selectedServices.includes(service)} onChange={() => toggleService(service)} className="w-5 h-5 rounded border-gray-300 text-[#10837f] focus:ring-[#10837f]" />
                       <span className="text-gray-700 font-medium">{service}</span>
                     </label>
                   ))}
@@ -249,19 +202,20 @@ export function ReferralFormPage() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Diagnosis / Primary Reason for Referral *</label>
-                    <textarea required name="diagnosis" value={formData.diagnosis} onChange={handleInput} rows={3} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all resize-none" placeholder="Briefly describe the patient's condition..."></textarea>
+                    <textarea required name="diagnosis" rows={3} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all resize-none" placeholder="Briefly describe the patient's condition..."></textarea>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Additional Notes / Special Requirements</label>
-                    <textarea name="additionalNotes" value={formData.additionalNotes} onChange={handleInput} rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all resize-none" placeholder="Any other relevant details or specific care requirements..."></textarea>
+                    <textarea name="additionalNotes" rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#10837f] focus:border-transparent outline-none transition-all resize-none" placeholder="Any other relevant details or specific care requirements..."></textarea>
                   </div>
                 </div>
               </div>
 
               {/* Submit Button */}
               <div className="pt-6 border-t border-gray-100 flex justify-end">
-                <Button disabled={isSubmitting} type="submit" size="lg" className="w-full md:w-auto px-10 py-6 rounded-full bg-[#10837f] hover:bg-[#0c6b68] text-white font-medium text-lg shadow-[0_4px_14px_rgba(16,131,127,0.4)] disabled:opacity-50">
-                   {isSubmitting ? 'Submitting...' : 'Submit Referral'}
+                <Button disabled={formState.submitting} type="submit" size="lg" className="w-full md:w-auto px-10 py-6 rounded-full bg-[#10837f] hover:bg-[#0c6b68] text-white font-medium text-lg shadow-[0_4px_14px_rgba(16,131,127,0.4)] disabled:opacity-50">
+                   {formState.submitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                   {formState.submitting ? 'Submitting...' : 'Submit Referral'}
                 </Button>
               </div>
 

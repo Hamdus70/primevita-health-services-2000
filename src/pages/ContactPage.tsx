@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, Phone, MapPin, Send, Clock, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, Clock, ShieldCheck, Loader2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { getDb } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
+import { useForm, ValidationError } from '@formspree/react';
+import { useEffect, useState } from 'react';
 
 export function ContactPage() {
   const location = useLocation();
@@ -11,16 +10,13 @@ export function ContactPage() {
   const typeParam = queryParams.get('type');
   
   const [inquiryType, setInquiryType] = useState(typeParam === 'assessment' ? 'Book an Assessment' : 'General Inquiry');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      message: '',
-      locationType: '',
-      requestedDate: ''
-  });
+  const [formState, handleSubmit] = useForm('mojzrkkw');
+
+  useEffect(() => {
+    if (formState.succeeded) {
+      toast.success("Form submitted successfully! We'll get back to you soon.");
+    }
+  }, [formState.succeeded]);
 
   useEffect(() => {
     if (typeParam === 'assessment') {
@@ -29,37 +25,6 @@ export function ContactPage() {
       setInquiryType('Request Caregiver');
     }
   }, [typeParam]);
-
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-      setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsSubmitting(true);
-      try {
-          await addDoc(collection(getDb(), 'messages'), {
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              email: formData.email,
-              phone: formData.phone,
-              message: formData.message,
-              inquiryType: inquiryType,
-              locationType: inquiryType === 'Book an Assessment' ? formData.locationType : null,
-              requestedDate: inquiryType === 'Book an Assessment' ? formData.requestedDate : null,
-              createdAt: serverTimestamp()
-          });
-          toast.success("Form submitted successfully! We'll get back to you soon.");
-          setFormData({
-              firstName: '', lastName: '', email: '', phone: '', message: '', locationType: '', requestedDate: ''
-          });
-          setInquiryType('General Inquiry');
-      } catch (err: any) {
-          toast.error("Failed to send message: " + err.message);
-      } finally {
-          setIsSubmitting(false);
-      }
-  };
 
   return (
     <div className="bg-[#f8fcfc] min-h-screen">
@@ -155,28 +120,30 @@ export function ContactPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">First Name</label>
-                    <input type="text" name="firstName" value={formData.firstName} onChange={handleInput} required placeholder="John" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
+                    <input type="text" name="firstName" required placeholder="John" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Last Name</label>
-                    <input type="text" name="lastName" value={formData.lastName} onChange={handleInput} required placeholder="Doe" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
+                    <input type="text" name="lastName" required placeholder="Doe" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Email Address</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleInput} required placeholder="john@example.com" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
+                    <input type="email" name="email" required placeholder="john@example.com" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
+                    <ValidationError prefix="Email" field="email" errors={formState.errors} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Phone Number</label>
-                    <input type="tel" name="phone" value={formData.phone} onChange={handleInput} required placeholder="+234 800 000 0000" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
+                    <input type="tel" name="phone" required placeholder="+234 800 000 0000" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Inquiry Type</label>
                   <select 
+                     name="inquiryType"
                      value={inquiryType}
                      onChange={(e) => setInquiryType(e.target.value)}
                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all bg-white"
@@ -193,29 +160,27 @@ export function ContactPage() {
                   <div className="grid md:grid-cols-2 gap-6 bg-emerald-50/50 p-6 rounded-xl border border-emerald-100 mt-6">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-emerald-900">Location Type *</label>
-                        <select name="locationType" value={formData.locationType} onChange={handleInput} required className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all bg-white">
+                        <select name="locationType" required className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all bg-white">
                             <option value="">Select location...</option>
                             <option value="Home">Patient's Home</option>
                             <option value="Hospital">Hospital</option>
                         </select>
-                        <p className="text-xs text-emerald-700">Assessment is strictly for patients at home or hospital.</p>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-emerald-900">Requested Assessment Date *</label>
-                        <input type="date" name="requestedDate" value={formData.requestedDate} onChange={handleInput} required className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all bg-white" min={new Date().toISOString().split('T')[0]} />
-                        <p className="text-xs text-emerald-700">When should Primevita Management visit the patient?</p>
+                        <input type="date" name="requestedDate" required className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all bg-white" min={new Date().toISOString().split('T')[0]} />
                     </div>
                   </div>
                 )}
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Your Message</label>
-                  <textarea name="message" value={formData.message} onChange={handleInput} rows={5} required placeholder="How can we help you?" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all resize-none"></textarea>
+                  <textarea name="message" rows={5} required placeholder="How can we help you?" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all resize-none"></textarea>
                 </div>
 
-                <button type="submit" disabled={isSubmitting} className="w-full bg-[#10837f] text-white font-semibold py-4 rounded-xl hover:bg-[#0c6b68] transition-colors flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(16,131,127,0.4)] disabled:opacity-50">
-                  <Send className="w-5 h-5" />
-                  {isSubmitting ? 'Submitting...' : inquiryType === 'Book an Assessment' ? 'Submit Assessment Request' : 'Send Message'}
+                <button type="submit" disabled={formState.submitting} className="w-full bg-[#10837f] text-white font-semibold py-4 rounded-xl hover:bg-[#0c6b68] transition-colors flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(16,131,127,0.4)] disabled:opacity-50">
+                  {formState.submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                  {formState.submitting ? 'Submitting...' : inquiryType === 'Book an Assessment' ? 'Submit Assessment Request' : 'Send Message'}
                 </button>
               </form>
             </div>
