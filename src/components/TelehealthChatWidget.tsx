@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Video, X, Send, Camera, CameraOff, Mic, MicOff, AlertCircle, PhoneCall, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'react-router-dom';
-import { db } from '@/lib/firebase';
+import { db, getAuthClient, handleFirestoreError, OperationType } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
 import { toast } from 'sonner';
 
@@ -24,17 +25,34 @@ export function TelehealthChatWidget() {
   const [camError, setCamError] = useState<string | null>(null);
 
   const location = useLocation();
-  const user = { id: 'demo-user' }; // Mocked user
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const isDashboardRoute = location.pathname.includes('/portal') || location.pathname.includes('/dashboard');
 
   useEffect(() => {
-    // Optionally only fetch if isOpen, but for testing let's just fetch if authenticated
-    if (!user) return;
+    const auth = getAuthClient();
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        setUser({ id: u.uid, email: u.email || undefined });
+      } else {
+        setUser(null);
+      }
+      setAuthLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (authLoading || !user) {
+      setMessages([]);
+      return;
+    }
     const currentThreadId = user.id; // Using user.id as threadId
     setThreadId(currentThreadId);
 
-    const q = query(collection(db, 'messages'), where('threadId', '==', currentThreadId));
+    const path = 'messages';
+    const q = query(collection(db, path), where('threadId', '==', currentThreadId));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const msgs: any[] = [];
@@ -59,10 +77,11 @@ export function TelehealthChatWidget() {
         setMessages(msgs);
     }, (error) => {
         console.error("Error fetching messages:", error);
+        handleFirestoreError(error, OperationType.GET, path);
     });
 
     return () => unsubscribe();
-  }, [user.id]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -110,8 +129,9 @@ export function TelehealthChatWidget() {
     const textToSend = newMessage;
     setNewMessage('');
 
+    const path = 'messages';
     try {
-        await addDoc(collection(db, 'messages'), {
+        await addDoc(collection(db, path), {
             threadId: threadId,
             senderId: user.id || 'anonymous',
             receiverId: 'clinical_team',
@@ -123,18 +143,23 @@ export function TelehealthChatWidget() {
         
         // Simulate auto-reply from Clinical Team
         setTimeout(async () => {
-             await addDoc(collection(db, 'messages'), {
-                 threadId: threadId,
-                 senderId: 'system',
-                 receiverId: threadId,
-                 sender: 'Dr. Sarah',
-                 role: 'doctor',
-                 content: 'I see your message. Do you have a moment for a quick video consultation?',
-                 createdAt: serverTimestamp()
-             });
-        }, 2000);
+             try {
+                 await addDoc(collection(db, path), {
+                     threadId: threadId,
+                     senderId: 'system',
+                     receiverId: threadId,
+                     sender: 'Dr. Sarah',
+                     role: 'doctor',
+                     content: 'I see your message. Do you have a moment for a quick video consultation?',
+                     createdAt: serverTimestamp()
+                 });
+             } catch (err: any) {
+                 console.error("Failed to post clinical auto-reply simulated message", err);
+             }
+         }, 2000);
     } catch(err: any) {
         toast.error("Message failed to send. " + err.message);
+        handleFirestoreError(err, OperationType.WRITE, path);
     }
   };
 
@@ -203,6 +228,11 @@ export function TelehealthChatWidget() {
               {view === 'chat' && (
                   <>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {messages.length === 0 && (
+                            <div className="text-center text-gray-400 mt-10 text-sm">
+                                {!user ? "Please sign in to start a secure clinical chat." : "No messages yet."}
+                            </div>
+                        )}
                         {messages.map((msg) => (
                             <div key={msg.id} className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
                                 <span className="text-[10px] text-gray-500 mb-1 ml-1">{msg.sender} • {formatTime(msg.createdAt)}</span>
@@ -219,10 +249,11 @@ export function TelehealthChatWidget() {
                                 type="text"
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
-                                placeholder="Type a secure message..."
-                                className="flex-1 border border-gray-200 rounded-full pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                disabled={!user}
+                                placeholder={user ? "Type a secure message..." : "Please sign in to chat..."}
+                                className="flex-1 border border-gray-200 rounded-full pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
                             />
-                            <button type="submit" disabled={!newMessage.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-600 disabled:text-gray-400 disabled:bg-transparent hover:bg-blue-50 rounded-full transition-colors">
+                            <button type="submit" disabled={!newMessage.trim() || !user} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-600 disabled:text-gray-400 disabled:bg-transparent hover:bg-blue-50 rounded-full transition-colors">
                                 <Send className="w-4 h-4" />
                             </button>
                         </form>

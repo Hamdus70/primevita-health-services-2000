@@ -228,7 +228,7 @@ service cloud.firestore {
       
       function isValidMessage(data) {
          return data.keys().hasAll(['threadId', 'senderId', 'receiverId', 'content', 'createdAt']) &&
-                data.senderId == request.auth.uid &&
+                (data.senderId == request.auth.uid || data.senderId == 'system') &&
                 data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
                 data.createdAt == request.time;
       }
