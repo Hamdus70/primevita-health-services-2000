@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { HeartHandshake, Home, Users, Pill, ArrowRight } from 'lucide-react';
 import { HeroCarousel } from '@/components/HeroCarousel';
-import { MissionVisionHeader } from '@/components/layout/MissionVisionHeader';
 import { motion } from 'motion/react';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, MessageSquareText, FileText, CheckCircle, UserPlus, Menu, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { MissionVisionHeader } from './MissionVisionHeader';
+
 
 export function Header() {
   const { t, i18n } = useTranslation();
@@ -44,7 +44,7 @@ export function Header() {
             className="w-28 md:w-36 h-auto object-contain mix-blend-multiply" 
           />
         </Link>
-        <MissionVisionHeader />
+
         
         {/* Right Content */}
         <div className="flex items-center gap-4">
