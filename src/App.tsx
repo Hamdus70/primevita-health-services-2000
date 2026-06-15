@@ -6,6 +6,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { TopBar } from '@/components/layout/TopBar';
+import { MissionVisionHeader } from '@/components/layout/MissionVisionHeader';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { HomePage } from '@/pages/HomePage';

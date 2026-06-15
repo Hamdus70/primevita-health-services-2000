@@ -1,6 +1,6 @@
 export function MissionVisionHeader() {
   return (
-    <div className="bg-gray-50 border-b border-gray-100 py-3 overflow-hidden">
+    <div className="bg-[#f0f5fa] border-b border-[#e1eaf3] py-3 overflow-hidden">
         <div className="flex animate-marquee whitespace-nowrap gap-12 font-medium text-xs">
             <div className="flex gap-12">
                 <span><span className="text-[#d8a846] font-bold mr-2">OUR MISSION:</span> 
