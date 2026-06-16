@@ -49,6 +49,7 @@ export function Header() {
         
         {/* Right Content */}
         <div className="flex items-center gap-4">
+            <div id="google_translate_element" className="flex items-center text-[10px] font-bold"></div>
             <nav className="hidden lg:flex items-center gap-6 text-[12px] font-bold tracking-wide text-[#0e4e5e] uppercase">
                 <Link to="/about" className="hover:text-[#10837f] transition-colors">ABOUT US</Link>
                 
@@ -70,34 +71,31 @@ export function Header() {
 
                 <Link to="/faqs" className="hover:text-[#10837f] transition-colors py-4">FAQs</Link>
                 
-                <div id="google_translate_element"></div>
-                
-                <Link to="/refer-patient" className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 px-3 py-2 rounded-full transition-colors text-[10px] font-bold">
+                <Link to="/refer-patient" className="hidden lg:flex items-center gap-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 px-3 py-2 rounded-full transition-colors text-[10px] font-bold">
                     <UserPlus className="w-3.5 h-3.5" />
                     REFER PATIENT
                 </Link>
-                <Link to="/apply" className="flex items-center gap-1.5 bg-[#10837f] text-white hover:bg-[#0c6b68] px-3 py-2 rounded-full transition-colors text-[10px]">
+                <Link to="/apply" className="hidden lg:flex items-center gap-1.5 bg-[#10837f] text-white hover:bg-[#0c6b68] px-3 py-2 rounded-full transition-colors text-[10px]">
                     <FileText className="w-3.5 h-3.5" />
                     JOIN NETWORK
                 </Link>
-                <a href="https://drive.google.com/file/d/1ofsvGJycBn-JpVeUn9NNW4o1KR0JeIjl/view?usp=sharing" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 bg-[#0e4e5e] text-white hover:bg-[#093540] px-3 py-2 rounded-full transition-colors text-[10px]">
+                <a href="https://drive.google.com/file/d/1ofsvGJycBn-JpVeUn9NNW4o1KR0JeIjl/view?usp=sharing" target="_blank" rel="noopener noreferrer" className="hidden lg:flex items-center gap-1.5 bg-[#0e4e5e] text-white hover:bg-[#093540] px-3 py-2 rounded-full transition-colors text-[10px]">
                     <CheckCircle className="w-3.5 h-3.5" />
                     GOVERNMENT LICENSE
                 </a>
             </nav>
 
             {/* CTA Buttons */}
-            <div className="flex gap-2">
-              <Link to="/dashboard" className="bg-[#d8a846] text-white px-5 py-2.5 rounded-full flex items-center gap-2 hover:bg-[#b58b35] transition-colors shadow-[0_4px_10px_rgba(216,168,70,0.3)]">
+            <div className="flex gap-2 items-center">
+              <Link to="/dashboard" className="bg-[#d8a846] text-white px-3 py-1.5 rounded-full flex items-center gap-2 hover:bg-[#b58b35] transition-colors shadow-[0_4px_10px_rgba(216,168,70,0.3)] text-xs font-bold">
                   MY PORTAL
               </Link>
-              <Link to="/contact" className="bg-[#10837f] text-white px-5 py-2.5 rounded-full flex items-center gap-2 hover:bg-[#0c6b68] transition-colors shadow-[0_4px_10px_rgba(16,131,127,0.3)]">
-                  <MessageSquareText className="w-4 h-4" />
-                  <span className="hidden sm:inline">CONTACT US</span>
+              <Link to="/contact" className="bg-[#10837f] text-white p-3 rounded-full flex items-center justify-center hover:bg-[#0c6b68] transition-colors shadow-[0_4px_10px_rgba(16,131,127,0.3)]">
+                  <MessageSquareText className="w-5 h-5" />
               </Link>
               
               {/* Menu Button for small screens */}
-              <button className="lg:hidden p-2 text-[#0e4e5e]" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              <button className="p-2 text-[#0e4e5e]" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                  {isMenuOpen ? <X /> : <Menu />}
               </button>
             </div>

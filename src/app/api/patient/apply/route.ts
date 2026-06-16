@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { auth } from '@/lib/auth/firebase-admin';
+import { getAuth } from '@/lib/auth/firebase-admin';
 import { SequenceService } from '@/services/identity/sequence.service';
 import { hashPassword, generateTemporaryPassword } from '@/lib/auth/password';
+import { sendEmail } from '@/services/emailService';
 
 export async function POST(req: NextRequest) {
     try {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const idToken = authHeader.split('Bearer ')[1];
-        const decodedToken = await auth.verifyIdToken(idToken);
+        const decodedToken = await getAuth().verifyIdToken(idToken);
         const uid = decodedToken.uid;
         
         const body = await req.json();
@@ -86,6 +87,13 @@ export async function POST(req: NextRequest) {
                 }
             });
             console.log('UserCredential created for username:', username);
+            
+            await sendEmail({
+                to: 'primevitahealthservices@gmail.com',
+                subject: 'New Patient Application',
+                text: `New patient application submitted: ${firstName} ${lastName}`,
+                html: `<p>New patient application submitted: <strong>${firstName} ${lastName}</strong></p>`
+            });
 
             return NextResponse.json({ 
                 message: 'Application approved and credentials generated',

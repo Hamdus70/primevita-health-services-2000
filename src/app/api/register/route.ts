@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { auth } from '@/lib/auth/firebase-admin';
+import { getAuth } from '@/lib/auth/firebase-admin';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     let firebaseUser;
     try {
       console.log('Attempting to create Firebase Auth user:', email);
-      firebaseUser = await auth.createUser({
+      firebaseUser = await getAuth().createUser({
         email,
         password,
         displayName: fullName,
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
       console.error('Prisma patient creation failed, rolling back Firebase user:', prismaError);
       // Rollback Firebase User
       try {
-        await auth.deleteUser(firebaseUser.uid);
+        await getAuth().deleteUser(firebaseUser.uid);
         console.log('Firebase user rolled back successfully');
       } catch (rollbackError) {
         console.error('Failed to rollback Firebase user:', rollbackError);

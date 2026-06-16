@@ -39,9 +39,11 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { TelehealthChatWidget } from '@/components/TelehealthChatWidget';
 
 import TrackProgressPage from '@/pages/TrackProgressPage';
+import { Providers } from './app/providers';
 
 export default function App() {
   return (
+    <Providers>
       <BrowserRouter>
         <div className="flex min-h-screen flex-col">
         <CommandPalette />
@@ -106,6 +108,7 @@ export default function App() {
         </Routes>
       </div>
     </BrowserRouter>
+  </Providers>
   );
 }
 

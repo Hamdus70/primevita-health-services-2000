@@ -1,3 +1,5 @@
+import { getAuthClient } from '@/lib/firebase';
+
 export class ApiError extends Error {
   public status: number;
   public data: any;
@@ -35,6 +37,12 @@ async function request<T>(endpoint: string, options: FetchOptions = {}, retries 
       ...headers,
     },
   };
+
+  const user = getAuthClient().currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    (config.headers as any)["Authorization"] = `Bearer ${token}`;
+  }
 
   if (body) {
     config.body = JSON.stringify(body);

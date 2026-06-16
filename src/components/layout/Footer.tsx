@@ -97,7 +97,7 @@ export function Footer() {
            </p>
            <div className="flex gap-2 mb-6">
                 <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="bg-[#10837f] text-white p-2 rounded-full cursor-pointer hover:bg-[#0c6b68] hover:-translate-y-1 transition-all"><Facebook className="w-4 h-4" /></a>
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="bg-[#10837f] text-white p-2 rounded-full cursor-pointer hover:bg-[#0c6b68] hover:-translate-y-1 transition-all"><Instagram className="w-4 h-4" /></a>
+                <a href="https://www.instagram.com/primevitahealthservices" target="_blank" rel="noopener noreferrer" className="bg-[#10837f] text-white p-2 rounded-full cursor-pointer hover:bg-[#0c6b68] hover:-translate-y-1 transition-all"><Instagram className="w-4 h-4" /></a>
                 <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="bg-[#10837f] text-white p-2 rounded-full cursor-pointer hover:bg-[#0c6b68] hover:-translate-y-1 transition-all"><Linkedin className="w-4 h-4" /></a>
                 <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="bg-[#10837f] text-white p-2 rounded-full cursor-pointer hover:bg-[#0c6b68] hover:-translate-y-1 transition-all"><Twitter className="w-4 h-4" /></a>
                 <a href="https://youtube.com/@primevitahealthservices?si=uRreFq1yi5aBYGay" target="_blank" rel="noopener noreferrer" className="bg-[#10837f] text-white p-2 rounded-full cursor-pointer hover:bg-[#0c6b68] hover:-translate-y-1 transition-all"><Youtube className="w-4 h-4" /></a>

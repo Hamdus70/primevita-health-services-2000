@@ -3,9 +3,10 @@ import { BellRing, Siren } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDb, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot, limit, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export function PanicButton() {
-  const user = { id: 'demo-user', email: 'demo@example.com' }; 
+  const { user } = useAuth();
 
   const triggerAlarm = async () => {
     if (!user) {
@@ -17,7 +18,7 @@ export function PanicButton() {
       let senderRole = 'Unknown Role';
       let senderPhone = '';
       
-      const userRef = doc(getDb(), 'users', user.id, 'public', 'profile');
+      const userRef = doc(getDb(), 'users', user.uid, 'public', 'profile');
       try {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
@@ -27,11 +28,11 @@ export function PanicButton() {
             senderPhone = data.phone || senderPhone;
         }
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, `users/${user.id}/public/profile`);
+        handleFirestoreError(error, OperationType.GET, `users/${user.uid}/public/profile`);
       }
 
       await addDoc(collection(getDb(), 'emergencies'), {
-        senderId: user.id,
+        senderId: user.uid,
         senderEmail: user.email || 'Guest',
         senderName,
         senderRole,
@@ -63,7 +64,8 @@ export function PanicButton() {
 
 export function AdminEmergencyAlerts() {
   const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
-  const isAuthenticated = true; 
+  const { user, loading } = useAuth();
+  const isAuthenticated = !loading && !!user;
 
   // Listen for emergency alerts
   useEffect(() => {

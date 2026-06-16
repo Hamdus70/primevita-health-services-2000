@@ -1,3 +1,4 @@
+import { useAuth } from '@/components/auth/AuthProvider';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
@@ -120,13 +121,9 @@ const generateStaffId = (role: string) => {
     return `HSP-${prefix}-${seq.toString().padStart(4, '0')}`;
 };
 
-const MOCK_SESSION = { user: { id: 'admin-id' } };
-const STATUS = 'authenticated';
-
 export function AdminDashboard() {
   const navigate = useNavigate();
-  const session = MOCK_SESSION;
-  const status = STATUS;
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
 
   // States for interactive lists
@@ -317,7 +314,7 @@ export function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (!user) return;
     const qStaff = query(collection(db, 'users'));
     const unStaff = onSnapshot(qStaff, (snap) => {
         const staff = snap.docs.map(doc => {
@@ -362,16 +359,17 @@ export function AdminDashboard() {
         unStaff();
         unPatients();
     };
-  }, [status]);
+  }, [user]);
 
   useEffect(() => {
+    if (authLoading) return;
     const checkRole = async () => {
-      if (!session?.user) {
+      if (!user) {
         navigate('/auth/login');
         return;
       }
       try {
-        const userDoc = await getDoc(doc(db, 'users', session.user.id, 'public', 'profile'));
+        const userDoc = await getDoc(doc(db, 'users', user.uid, 'public', 'profile'));
         if (userDoc.exists()) {
           const ud = userDoc.data();
           if (ud.role !== 'admin') {
@@ -387,7 +385,7 @@ export function AdminDashboard() {
       }
     };
     checkRole();
-  }, [navigate, session, status]);
+  }, [navigate, user, authLoading]);
 
   if (loading) return <div className="p-8 text-center mt-20 text-[#10837f] font-semibold animate-pulse">Loading Admin Control Center...</div>;
 

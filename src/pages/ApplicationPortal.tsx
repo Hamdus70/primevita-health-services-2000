@@ -156,7 +156,7 @@ export function ApplicationPortal() {
             }
             const idToken = await userCredential.user.getIdToken();
             
-            const response = await fetch('/api/patient/apply', {
+            const response = await fetch('/api/patient/register', {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 
@@ -173,6 +173,7 @@ export function ApplicationPortal() {
                     emergencyName: formData.emergencyName,
                     emergencyPhone: formData.emergencyPhone,
                     emergencyRelation: formData.emergencyRelation,
+                    firebase_uid: userCredential.user.uid
                 }),
             });
             const textResponse = await response.text();
@@ -186,7 +187,11 @@ export function ApplicationPortal() {
 
             if (!response.ok) throw new Error(result.error || result.message || "Failed to submit application. Please try again or refresh.");
 
-            toast.success('Registration successful. Your application is under review by our admin team.');
+            if (result.credentials) {
+                setCredentials({ id: result.credentials.username, pass: result.credentials.password });
+            }
+
+            toast.success('Registration successful.');
             setStep(4);
         } catch (err: any) {
             toast.error("Failed to submit application: " + err.message);
@@ -204,8 +209,22 @@ export function ApplicationPortal() {
         }
 
         // Trigger OTP Modal for staff
-        setOtpModalOpen(true);
-        toast.info("An OTP has been sent to your email to secure your application.");
+        try {
+            const response = await fetch('/api/otp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: formData.email })
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to send OTP. Please try again.");
+            }
+
+            setOtpModalOpen(true);
+            toast.info("An OTP has been sent to your email to secure your application.");
+        } catch (err: any) {
+            toast.error(err.message);
+        }
     }
   };
 
@@ -217,9 +236,34 @@ export function ApplicationPortal() {
       setGeneratingTracker(true);
       setTimeout(async () => {
           try {
+              // Verify OTP first
+              const verifyResponse = await fetch('/api/otp/verify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: formData.email, otp: otpValue })
+              });
+
+              if (!verifyResponse.ok) {
+                  throw new Error("Invalid or expired OTP");
+              }
+
               const firstName = formData.fullName.split(' ')[0];
               const lastName = formData.fullName.split(' ').slice(1).join(' ') || 'Unknown';
               
+              // Create user in Firebase Auth first
+              const tempPassword = `Staff@${Math.random().toString(36).slice(-6)}!`;
+              let userCredential;
+              try {
+                  userCredential = await createUserWithEmailAndPassword(getAuthClient(), formData.email, tempPassword);
+              } catch (authErr: any) {
+                  console.error("Staff Auth error details:", JSON.stringify(authErr));
+                  if (authErr.code === 'auth/email-already-in-use') {
+                      toast.error("Email already registered.");
+                      return;
+                  }
+                  throw authErr;
+              }
+
               const response = await fetch('/api/staff/apply', {
                   method: 'POST',
                   credentials: 'include',
@@ -229,30 +273,12 @@ export function ApplicationPortal() {
                       lastName,
                       email: formData.email,
                       phone: formData.phone,
-                      role: 'NURSE', // Defaulting since form doesn't cleanly ask for role here, but could be added
+                      role: 'NURSE',
                       guarantorName: formData.guarantorName,
-                      guarantorPhone: formData.guarantorPhone
+                      guarantorPhone: formData.guarantorPhone,
+                      firebase_uid: userCredential.user.uid
                   }),
               });
-
-              // Create user in Firebase Auth after staff submission success
-              const tempPassword = `Staff@${Math.random().toString(36).slice(-6)}!`;
-              try {
-                await createUserWithEmailAndPassword(getAuthClient(), formData.email, tempPassword);
-              } catch (authErr: any) {
-                console.error("Staff Auth error details:", JSON.stringify(authErr));
-                if (authErr.code === 'auth/email-already-in-use') {
-                    toast.error("Email already registered.", {
-                        description: "This email is already in use. Please log in to your account.",
-                        action: {
-                            label: "Log In",
-                            onClick: () => navigate('/login')
-                        }
-                    });
-                    return;
-                }
-                throw authErr;
-              }
               
               const textResponse = await response.text();
               let result: any = {};
@@ -261,7 +287,11 @@ export function ApplicationPortal() {
               } catch (e) {
                   throw new Error("Server returned an invalid response. " + (response.status !== 200 ? `Status: ${response.status}` : ''));
               }
-              if (!response.ok) throw new Error(result.error || result.message || "Failed to submit application");
+              if (!response.ok) {
+                  // Rollback auth user if backend registration fails
+                  await deleteUser(userCredential.user);
+                  throw new Error(result.error || result.message || "Failed to submit application");
+              }
               
               const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
@@ -270,11 +300,9 @@ export function ApplicationPortal() {
               
               toast.success("Application successfully securely submitted!");
               
-              // Store application locally
               const existing = JSON.parse(localStorage.getItem('trackedApplications') || '[]');
               localStorage.setItem('trackedApplications', JSON.stringify([...existing, { ...formData, cvFile: null, certFile: null, idFile: null, eduFile: null, guarantorIdFile: null, token, status: 'pending' }]));
 
-              // Redirect after a brief moment so they read the toast
               setTimeout(() => {
                   navigate(`/track-application/${token}`);
               }, 1500);

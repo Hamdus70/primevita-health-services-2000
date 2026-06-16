@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth/firebase-admin';
+import { getAuth } from '@/lib/auth/firebase-admin';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   let session: any;
   try {
-    const decodedToken = await auth.verifyIdToken(token);
+    const decodedToken = await getAuth().verifyIdToken(token);
     // In a real app, you would fetch user data from DB using decodedToken.uid
     // For this example, we assume decodedToken contains enough info or mapping is done.
     session = { user: { linkedUserType: 'STAFF', staffId: decodedToken.uid } }; 

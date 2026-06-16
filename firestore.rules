@@ -19,7 +19,7 @@ service cloud.firestore {
     // Role Verification
     function getUserRole() {
       let profilePath = /databases/$(database)/documents/users/$(request.auth.uid)/public/profile;
-      return exists(profilePath) ? get(profilePath).data.role : 'patient';
+      return exists(profilePath) ? get(profilePath).data.role : (isDev() ? 'admin' : 'patient');
     }
     
     function isAdmin() { return isVerified() && (getUserRole() == 'admin' || isDev()); }
@@ -31,7 +31,7 @@ service cloud.firestore {
     function isPatient() { return isVerified() && getUserRole() == 'patient'; }
     function isClinicalStaff() {
       let role = getUserRole();
-      return role in ['doctor', 'nurse', 'physiotherapist'] || isDev();
+      return role in ['doctor', 'nurse', 'physiotherapist', 'admin', 'caregiver'] || isDev();
     }
     
     function isFamilyOf(patientId) {
@@ -45,8 +45,17 @@ service cloud.firestore {
     }
     match /users/{userId} {
       allow read: if isAdmin() || isClinicalStaff();
+      match /public/profile {
+        allow read: if isVerified();
+        allow update: if isVerified();
+      }
     }
-    match /users/{userId}/public/profile {
+    
+    // ----- Patients Collection -----
+    match /patients {
+      allow list: if isAdmin() || isClinicalStaff();
+    }
+    match /patients/{patientId} {
       // Profile can be read by anyone signed in (to display names/roles)
       allow read: if isSignedIn() && isValidId(userId);
       // Validating user creation
@@ -65,7 +74,7 @@ service cloud.firestore {
       allow create: if isVerified() && request.auth.uid == userId && isValidPublicProfile(incoming());
       
       // PROTOTYPE BYPASS: Allowing 'role' update so the Dev Role Switcher works for any signed-in user exploring the app.
-      allow update: if isVerified() && (isAdmin() || isDev() || (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['firstName', 'lastName', 'updatedAt', 'role'])));
+      allow update: if isVerified() && (isAdmin() || isDev() || (request.auth.uid == userId));
     }
 
     match /users/{userId}/private/info {
@@ -297,6 +306,13 @@ service cloud.firestore {
                     incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
     }
 
+    // ----- Care Requests (Public Assessment forms) -----
+    match /care_requests/{requestId} {
+      allow create: if true;
+      allow read: if true; 
+      allow update: if isVerified() && isAdmin();
+    }
+    
     // ----- Applications (Public forms) -----
     match /applications/{applicationId} {
       allow create: if true;

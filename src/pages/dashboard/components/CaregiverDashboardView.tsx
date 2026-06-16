@@ -1,3 +1,4 @@
+import { useAuth } from '@/components/auth/AuthProvider';
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -15,8 +16,7 @@ import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp
 
 export function CaregiverDashboardView() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const session = { user: { id: 'demo-user', email: 'demo@example.com' }};
-  const user = session?.user;
+  const { user } = useAuth();
   
   // Profile State
   const [profile, setProfile] = useState<any>({
@@ -32,7 +32,7 @@ export function CaregiverDashboardView() {
     if (!user) return;
 
     const fetchProfile = async () => {
-      const profSnap = await getDoc(doc(db, `users/${user.id}/public/profile`));
+      const profSnap = await getDoc(doc(db, `users/${user.uid}/public/profile`));
       if (profSnap.exists()) {
         const d = profSnap.data();
         setProfile({
@@ -40,7 +40,7 @@ export function CaregiverDashboardView() {
             fullName: d.firstName && d.lastName ? `${d.firstName} ${d.lastName}` : d.fullName || '',
             isComplete: !!d.firstName && !!d.lastName,
             email: user.email,
-            staffId: `HSP-CG-${user.id.substring(0, 4).toUpperCase()}`,
+            staffId: `HSP-CG-${user.uid.substring(0, 4).toUpperCase()}`,
             department: 'Home Care Division',
             status: 'On Shift',
             age: d.age || '',
@@ -97,7 +97,7 @@ export function CaregiverDashboardView() {
     if (progress === 100) {
       try {
         const names = profile.fullName.split(' ');
-        await setDoc(doc(db, `users/${user.id}/public/profile`), {
+        await setDoc(doc(db, `users/${user.uid}/public/profile`), {
             firstName: names[0] || '',
             lastName: names.slice(1).join(' ') || '',
             age: profile.age,

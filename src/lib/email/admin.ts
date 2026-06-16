@@ -1,7 +1,7 @@
 import { sendEmail } from './smtp';
 
 export async function sendAdminNotification(subject: string, message: string) {
-    const adminEmail = 'jimohmuhammad21@gmail.com';
+    const adminEmail = 'primevitahealthservices@gmail.com';
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f8fafc;">
             <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">

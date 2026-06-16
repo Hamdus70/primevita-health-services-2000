@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { prisma } from '../../src/lib/db/prisma';
-import { auth } from '../../src/lib/auth/firebase-admin';
+import { getAuth } from '../../src/lib/auth/firebase-admin';
 
 test.describe('Registration Flow', () => {
   test('should register a new patient and verify in DB and Firebase', async ({ page }) => {
@@ -25,7 +25,7 @@ test.describe('Registration Flow', () => {
     await expect(page).toHaveURL(/.*onboarding\/page/); // Adjust based on actual URL
 
     // 3. Verify in Firebase Auth
-    const userRecord = await auth.getUserByEmail(testEmail);
+    const userRecord = await getAuth().getUserByEmail(testEmail);
     expect(userRecord).toBeDefined();
     expect(userRecord.email).toBe(testEmail);
 

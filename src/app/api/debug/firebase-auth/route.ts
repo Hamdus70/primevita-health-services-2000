@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth, adminInstance } from '@/lib/auth/firebase-admin';
+import { getAuth, adminInstance } from '@/lib/auth/firebase-admin';
 
 export async function GET() {
   try {
@@ -13,7 +13,7 @@ export async function GET() {
 
     try {
       // Light test
-      await auth.listUsers(1);
+      await getAuth().listUsers(1);
       diagnosticData.authAccessible = true;
     } catch (e: any) {
       diagnosticData.error = {

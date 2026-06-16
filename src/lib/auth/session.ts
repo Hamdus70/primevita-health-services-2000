@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth/firebase-admin';
+import { getAuth } from '@/lib/auth/firebase-admin';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/db/prisma';
 
@@ -7,7 +7,7 @@ export async function getCurrentUser() {
   if (!token) return null;
   
   try {
-    const decodedToken = await auth.verifyIdToken(token);
+    const decodedToken = await getAuth().verifyIdToken(token);
     const user = await (prisma as any).user.findUnique({ where: { firebaseUid: decodedToken.uid } });
     if (!user) {
         return { ...decodedToken, id: decodedToken.uid };

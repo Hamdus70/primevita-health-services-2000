@@ -10,13 +10,44 @@ export function ContactPage() {
   const typeParam = queryParams.get('type');
   
   const [inquiryType, setInquiryType] = useState(typeParam === 'assessment' ? 'Book an Assessment' : 'General Inquiry');
-  const [formState, handleSubmit] = useForm('mojzrkkw');
+  const [formState, formSubmit] = useForm('mojzrkkw');
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const emailValue = formData.get('email') as string;
+    
+    const submittedEmails = JSON.parse(localStorage.getItem('contactSubmittedEmails') || '[]');
+    
+    if (submittedEmails.includes(emailValue)) {
+        toast.error("You have already submitted from this email address.");
+        return;
+    }
+    
+    setEmail(emailValue);
+    formSubmit(e);
+  };
 
   useEffect(() => {
     if (formState.succeeded) {
       toast.success("Form submitted successfully! We'll get back to you soon.");
+      const submittedEmails = JSON.parse(localStorage.getItem('contactSubmittedEmails') || '[]');
+      localStorage.setItem('contactSubmittedEmails', JSON.stringify([...submittedEmails, email]));
+      setHasSubmitted(true);
     }
-  }, [formState.succeeded]);
+  }, [formState.succeeded, email]);
+
+
+  if (hasSubmitted) {
+      return (
+          <div className="container mx-auto px-6 py-24 text-center">
+              <h2 className="text-3xl font-bold text-[#0e4e5e]">Form Already Submitted</h2>
+              <p className="text-gray-600 mt-4">You have already submitted this contact form.</p>
+          </div>
+      );
+  }
 
   useEffect(() => {
     if (typeParam === 'assessment') {

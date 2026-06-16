@@ -45,7 +45,10 @@ export function PatientPortal() {
 
   useEffect(() => {
     async function initPortal() {
-      if (!user) return;
+      if (!user) {
+          setLoading(false);
+          return;
+      }
       setLoading(true);
 
       try {

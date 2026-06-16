@@ -6,6 +6,7 @@ import { sendAdminNotification } from './src/lib/email/admin';
 import { sendOTP, verifyOTP } from './src/lib/email/otp';
 import { sendTrackingLink } from './src/lib/email/tracking';
 import { sendInterviewInvite, sendInterviewReminder } from './src/lib/email/interview';
+import { getAuth } from './src/lib/auth/firebase-admin';
 
 // Re-implement the onboard patient logic
 import bcrypt from 'bcrypt';
@@ -29,8 +30,8 @@ async function createServer() {
                 return res.status(429).json({ error: "Too many requests" });
             }
 
-            const { firstName, lastName, email, phone } = req.body;
-            if (!firstName || !lastName || !email || !phone) {
+            const { firstName, lastName, email, phone, firebase_uid } = req.body;
+            if (!firstName || !lastName || !email || !phone || !firebase_uid) {
                 return res.status(400).json({ error: "Missing required fields" });
             }
 
@@ -74,6 +75,7 @@ async function createServer() {
                         nationality: 'Not Provided',
                         active_status: true,
                         onboarding_completed: true,
+                        firebase_uid: firebase_uid,
                     }
                 });
 
@@ -130,8 +132,8 @@ async function createServer() {
                 return res.status(429).json({ error: "Too many requests" });
             }
 
-            const { firstName, lastName, email, phone, role } = req.body;
-            if (!firstName || !lastName || !email || !role) {
+            const { firstName, lastName, email, phone, role, firebase_uid } = req.body;
+            if (!firstName || !lastName || !email || !role || !firebase_uid) {
                 return res.status(400).json({ error: "Missing required fields" });
             }
 
@@ -145,6 +147,7 @@ async function createServer() {
 
             const newStaff = await prisma.staff.create({
                 data: {
+                    firebase_uid: firebase_uid,
                     staff_id_format: username,
                     first_name: firstName,
                     last_name: lastName,
@@ -172,6 +175,47 @@ async function createServer() {
             return res.status(201).json({ message: "Application submitted successfully. Pending Admin Approval.", staffId: newStaff.id });
         } catch (error: any) {
             console.error("Staff Application Error:", error);
+            return res.status(500).json({ error: "Internal Server Error" });
+        }
+    });
+
+    app.post('/api/auth/login', async (req, res) => {
+        try {
+            const { username, password } = req.body;
+            if (!username || !password) {
+                return res.status(400).json({ error: "Missing username or password" });
+            }
+
+            const credential = await prisma.userCredential.findUnique({
+                where: { username: username },
+                include: { patient: true, staff: true }
+            });
+
+            if (!credential) {
+                return res.status(401).json({ error: "Invalid username or password" });
+            }
+
+            const isValid = await bcrypt.compare(password, credential.password_hash);
+
+            if (!isValid) {
+                return res.status(401).json({ error: "Invalid username or password" });
+            }
+
+            const firebaseUid = credential.patient?.firebase_uid || credential.staff?.firebase_uid;
+            
+            if (!firebaseUid) {
+                return res.status(500).json({ error: "User record corrupted: No Firebase UID" });
+            }
+
+            const customToken = await getAuth().createCustomToken(firebaseUid);
+
+            return res.status(200).json({ 
+                success: true, 
+                customToken,
+                user: { username: credential.username, type: credential.linked_user_type, patientId: credential.patient_id, staffId: credential.staff_id } 
+            });
+        } catch (error) {
+            console.error("Login Error:", error);
             return res.status(500).json({ error: "Internal Server Error" });
         }
     });

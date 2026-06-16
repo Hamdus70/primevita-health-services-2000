@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClipboardList, User, Activity, AlertCircle, Phone, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BodyMap, BodyPart } from '../components/BodyMap';
-import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
+import { useForm } from '@formspree/react';
 
 export function AssessmentPage() {
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [state, fsSubmit] = useForm('xgobqezy');
+
+  useEffect(() => {
+    if (state.succeeded) {
+        setIsSubmitted(true);
+        setIsSubmitting(false);
+    }
+  }, [state.succeeded]);
 
   const [formData, setFormData] = useState({
     patientName: '',
@@ -21,7 +28,7 @@ export function AssessmentPage() {
     careType: '',
     contactName: '',
     contactPhone: '',
-    contactEmail: '',
+    email: '',
     preferredDate: ''
   });
 
@@ -37,20 +44,9 @@ export function AssessmentPage() {
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
   const submitForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (step < 4) return;
     setIsSubmitting(true);
-    try {
-       await addDoc(collection(db, 'care_requests'), {
-           ...formData,
-           painAreas: painAreas,
-           status: 'pending_review',
-           createdAt: serverTimestamp()
-       });
-       setIsSubmitted(true);
-    } catch (error: any) {
-       toast.error("Failed to submit assessment: " + error.message);
-    } finally {
-       setIsSubmitting(false);
-    }
+    fsSubmit(e);
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -105,6 +101,7 @@ export function AssessmentPage() {
         </div>
 
         <form onSubmit={submitForm} className="bg-white rounded-[2rem] p-8 md:p-12 shadow-xl shadow-teal-900/5 border border-emerald-50">
+          <input type="hidden" name="painAreas" value={JSON.stringify(painAreas)} />
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
@@ -231,7 +228,7 @@ export function AssessmentPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-gray-700">Email Address *</label>
-                    <input required name="contactEmail" value={formData.contactEmail} onChange={handleInput} type="email" className="w-full px-5 py-4 bg-gray-50 rounded-xl border-transparent focus:bg-white focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" placeholder="john@example.com" />
+                    <input required name="email" value={formData.email} onChange={handleInput} type="email" className="w-full px-5 py-4 bg-gray-50 rounded-xl border-transparent focus:bg-white focus:border-[#10837f] focus:ring-2 focus:ring-[#10837f]/20 outline-none transition-all" placeholder="john@example.com" />
                   </div>
                 </div>
               </motion.div>

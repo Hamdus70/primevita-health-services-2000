@@ -6,14 +6,41 @@ import { useForm, ValidationError } from '@formspree/react';
 import { toast } from 'sonner';
 
 export function ReferralFormPage() {
-  const [formState, handleSubmit] = useForm('mjgdlaoq');
+  const [formState, formSubmit] = useForm('mjgdlaoq');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if(selectedServices.length === 0) {
+        toast.error("Please select at least one service.");
+        return;
+    }
+
+    const formData = new FormData(e.currentTarget);
+    const emailValue = formData.get('referrerEmail') as string;
+    
+    const submittedEmails = JSON.parse(localStorage.getItem('referralSubmittedEmails') || '[]');
+    
+    if (submittedEmails.includes(emailValue)) {
+        toast.error("You have already submitted a referral from this email address.");
+        return;
+    }
+    
+    setEmail(emailValue);
+    formSubmit(e);
+  };
   
   useEffect(() => {
     if (formState.succeeded) {
       toast.success("Referral submitted successfully!");
+      const submittedEmails = JSON.parse(localStorage.getItem('referralSubmittedEmails') || '[]');
+      localStorage.setItem('referralSubmittedEmails', JSON.stringify([...submittedEmails, email]));
+      setHasSubmitted(true);
     }
-  }, [formState.succeeded]);
+  }, [formState.succeeded, email]);
+
 
   const toggleService = (service: string) => {
       setSelectedServices(prev => 
@@ -21,7 +48,7 @@ export function ReferralFormPage() {
       );
   };
 
-  if (formState.succeeded) {
+  if (hasSubmitted || formState.succeeded) {
     return (
       <div className="container mx-auto px-4 py-24 max-w-2xl text-center">
         <motion.div 

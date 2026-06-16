@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { ShieldCheck, LogIn, Key, Search, Mail, Lock, ArrowRight, Fingerprint } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { getAuthClient } from '@/lib/firebase';
+import { signInWithCustomToken } from 'firebase/auth';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -96,8 +98,13 @@ export function LoginPage() {
             const result = await response.json();
 
             if (!response.ok) throw new Error(result.error || 'Authentication failed');
+            
+            if (result.customToken) {
+                await signInWithCustomToken(getAuthClient(), result.customToken);
+            }
 
             toast.success('Login successful!');
+            localStorage.setItem('user', JSON.stringify(result.user));
             routeUser(result.user.type.toLowerCase());
         }
     } catch (error: any) {
