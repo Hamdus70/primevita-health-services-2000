@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
                     state: 'UNKNOWN',
                     country: 'UNKNOWN',
                     nationality: 'UNKNOWN',
+                    firebase_uid: uid,
                 }
             });
             console.log('Patient record created:', patient.id);

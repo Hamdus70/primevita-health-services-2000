@@ -156,7 +156,7 @@ export function ApplicationPortal() {
             }
             const idToken = await userCredential.user.getIdToken();
             
-            const response = await fetch('/api/patient/register', {
+            const response = await fetch('/api/patient/apply', {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 
