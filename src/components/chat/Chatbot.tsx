@@ -155,6 +155,86 @@ export function Chatbot() {
     };
   }, [callState]);
 
+  const micStateEnabledRef = useRef(micStateEnabled);
+  const callStateRef = useRef(callState);
+  const voiceEnabledRef = useRef(voiceEnabled);
+  const lastQuestionRef = useRef<string>("Welcome to PrimeVita. To help me direct you, what is your full name please?");
+
+  useEffect(() => {
+    micStateEnabledRef.current = micStateEnabled;
+  }, [micStateEnabled]);
+
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
+  useEffect(() => {
+    voiceEnabledRef.current = voiceEnabled;
+  }, [voiceEnabled]);
+
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  };
+
+  const resetSilenceTimer = (duration = 12000) => {
+    clearSilenceTimer();
+    if (callStateRef.current === 'idle' || callStateRef.current === 'ended' || callStateRef.current === 'completed') {
+      return;
+    }
+    // If the browser is actively speaking, let's not set a silence timeout yet!
+    // Since we are in always-listening mode, we don't want the silence countdown to fire while AI says long reports.
+    if (window.speechSynthesis.speaking) {
+      return;
+    }
+    silenceTimerRef.current = setTimeout(() => {
+      if (callStateRef.current === 'idle' || callStateRef.current === 'ended' || callStateRef.current === 'completed') {
+        return;
+      }
+      if (window.speechSynthesis.speaking) {
+        // AI is still speaking, postpone the timer recursively
+        resetSilenceTimer(duration);
+        return;
+      }
+      stopListening();
+      const repeatPrompt = `I'm sorry, I didn't quite catch that. Just to confirm: ${lastQuestionRef.current}`;
+      setLiveCaptions(repeatPrompt);
+      speak(repeatPrompt, () => {
+         if (micStateEnabledRef.current && callStateRef.current !== 'idle') {
+           startListening();
+         }
+      });
+    }, duration);
+  };
+
+  const startListening = () => {
+    if (!micStateEnabledRef.current) return;
+    if (!recognitionRef.current) return;
+    try {
+      recognitionRef.current.abort();
+    } catch (e) {}
+    setTimeout(() => {
+      try {
+        if (micStateEnabledRef.current) {
+          recognitionRef.current.start();
+          setIsListening(true);
+        }
+      } catch (err) {
+        console.warn("Speech recognition starting failed: ", err);
+      }
+    }, 120);
+  };
+
+  const stopListening = () => {
+    if (!recognitionRef.current) return;
+    try {
+      recognitionRef.current.stop();
+    } catch (e) {}
+    setIsListening(false);
+  };
+
   // Speech Recognition Initialization
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -166,20 +246,33 @@ export function Chatbot() {
 
       recognitionRef.current.onstart = () => {
         setIsListening(true);
-        // Start a silence timer
-        silenceTimerRef.current = setTimeout(() => {
-          // If we are still listening, timeout!
-          recognitionRef.current?.stop();
-          speak("I'm sorry, I didn't quite catch that. Are you still there?", () => {
-             if (micStateEnabled) toggleListening();
-          });
-        }, 12000); // 12 seconds silence
+        resetSilenceTimer(12000);
       };
 
       recognitionRef.current.onresult = (event: any) => {
-        clearTimeout(silenceTimerRef.current!);
+        clearSilenceTimer();
         const transcript = event.results[0][0].transcript;
-        if (callState === 'idle') {
+        
+        // Barge-in check: If AI is actively speaking, interrupt it instantly!
+        if (window.speechSynthesis.speaking && callStateRef.current !== 'idle') {
+          window.speechSynthesis.cancel();
+          console.log("Barge-in: Canceled and interrupted TTS playback based on user speech input.");
+        }
+
+        const lowerText = transcript.toLowerCase().trim();
+        const recallGreetings = ['hello', 'hi', 'hey', 'hello?', 'are you there?', 'anyone there?', 'is anyone there?', 'hello anyone', 'is someone there'];
+        const isRecall = recallGreetings.some(greet => lowerText === greet || lowerText.startsWith(greet + ' ') || lowerText.endsWith(' ' + greet));
+        
+        if (callStateRef.current !== 'idle' && isRecall) {
+          const recallText = `Hello! Yes, I am actively listening. I was asking you: ${lastQuestionRef.current}`;
+          setLiveCaptions(recallText);
+          speak(recallText, () => {
+            if (micStateEnabledRef.current) startListening();
+          });
+          return;
+        }
+
+        if (callStateRef.current === 'idle') {
           setInput(transcript);
           setIsListening(false);
         } else {
@@ -188,14 +281,36 @@ export function Chatbot() {
         }
       };
 
-      recognitionRef.current.onerror = () => {
-        clearTimeout(silenceTimerRef.current!);
+      recognitionRef.current.onerror = (event: any) => {
+        console.warn("Speech recognition error:", event.error);
+        clearSilenceTimer();
         setIsListening(false);
+        
+        // Robust ALWAYS-LISTENING Auto-Restart:
+        // By removing the "!window.speechSynthesis.speaking" guard, the microphone is kept active
+        // even during agent speech/response phase so user can barge-in at any time.
+        if (callStateRef.current !== 'idle' && callStateRef.current !== 'ended' && callStateRef.current !== 'completed') {
+          setTimeout(() => {
+            if (micStateEnabledRef.current && callStateRef.current !== 'idle') {
+              startListening();
+            }
+          }, 800);
+        }
       };
       
       recognitionRef.current.onend = () => {
-        clearTimeout(silenceTimerRef.current!);
+        clearSilenceTimer();
         setIsListening(false);
+
+        // Robust ALWAYS-LISTENING Auto-Restart:
+        // Even when AI is responding/speaking, restart speech recognition immediately.
+        if (callStateRef.current !== 'idle' && callStateRef.current !== 'ended' && callStateRef.current !== 'completed') {
+          setTimeout(() => {
+            if (micStateEnabledRef.current && callStateRef.current !== 'idle') {
+              startListening();
+            }
+          }, 300);
+        }
       };
     }
   }, [callState]);
@@ -215,9 +330,17 @@ export function Chatbot() {
   }, []);
 
   const speak = (text: string, onEnd?: () => void) => {
+    clearSilenceTimer();
     if (!voiceEnabled) {
       if (onEnd) setTimeout(onEnd, 1000); 
       return;
+    }
+    
+    // Save last actual triage question asked
+    if (callStateRef.current !== 'idle' && callStateRef.current !== 'ended' && callStateRef.current !== 'completed') {
+      if (!text.includes("catch that") && !text.includes("still there") && !text.includes("always listening") && !text.includes("Yes, I am listening")) {
+        lastQuestionRef.current = text;
+      }
     }
     
     // Resume speech if paused
@@ -232,7 +355,6 @@ export function Chatbot() {
         
         // Simplified voice finding logic
         const voices = window.speechSynthesis.getVoices();
-        // Try to find a good voice, but don't strictly require a specific one
         const preferredVoice = voices.find(v => v.lang === 'en-NG') || 
                                voices.find(v => v.lang.startsWith('en-US')) || 
                                voices.find(v => v.lang.startsWith('en')) || 
@@ -242,7 +364,6 @@ export function Chatbot() {
           utterance.voice = preferredVoice;
         }
         
-        // Ensure some reasonable defaults if voice still not found by engine
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
@@ -251,7 +372,12 @@ export function Chatbot() {
         const triggerEnd = () => {
             if (!ended) {
                 ended = true;
-                if (onEnd) onEnd();
+                if (onEnd) {
+                  onEnd();
+                } else if (callStateRef.current !== 'idle' && callStateRef.current !== 'ended' && callStateRef.current !== 'completed') {
+                  if (micStateEnabledRef.current) startListening();
+                }
+                resetSilenceTimer();
             }
         };
 
@@ -264,33 +390,13 @@ export function Chatbot() {
 
   const toggleListening = () => {
     if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
+      stopListening();
     } else {
       if (!micStateEnabled) {
         toast.error("Microphone is currently muted.");
         return;
       }
-      try {
-        // Attempt to stop just in case it's in a weird state
-        recognitionRef.current?.stop();
-        setTimeout(() => {
-            try {
-                recognitionRef.current?.start();
-                setIsListening(true);
-            } catch (err) {
-                console.error("Speech Recognition start error:", err);
-            }
-        }, 100);
-      } catch (err) {
-        // If stop fails (likely because it's already stopped), proceed to start
-        try {
-            recognitionRef.current?.start();
-            setIsListening(true);
-        } catch (err2) {
-            console.error("Speech Recognition start error:", err2);
-        }
-      }
+      startListening();
     }
   };
 
@@ -343,14 +449,14 @@ export function Chatbot() {
     speak(introSpeech, () => {
       if (micStateEnabled) {
         // Small delay to ensure synthesis is clearly done and mic is ready
-        setTimeout(toggleListening, 500);
+        setTimeout(startListening, 500);
       }
     });
   };
 
   const endHotlineCall = () => {
     window.speechSynthesis.cancel();
-    recognitionRef.current?.stop();
+    stopListening();
     setCallState('idle');
     setLiveCaptions("Press Connect below to place a telehealth triage call.");
     setUserTranscript('');
@@ -362,7 +468,7 @@ export function Chatbot() {
     if (!text.trim()) return;
     setUserTranscript(text);
     setHotlineInput('');
-    setIsListening(false); // Stop listening ASAP
+    stopListening(); // Stop listening ASAP
 
     switch (callState) {
       case 'opening': {
@@ -371,7 +477,7 @@ export function Chatbot() {
         if (parsedName.length < 3 || ['yes', 'no', 'hi', 'hello', 'ya', 'yeah', 'okay'].includes(parsedName.toLowerCase())) {
           const reAsk = "Thank you for that. To get your file open, may I have your full name, please?";
           setLiveCaptions(reAsk);
-          speak(reAsk, () => { if (micStateEnabled) toggleListening(); });
+          speak(reAsk, () => { if (micStateEnabled) startListening(); });
           return;
         }
 
@@ -420,7 +526,7 @@ export function Chatbot() {
           const scriptStr = `Welcome back ${parsedName}. Last time you reported having ${prevCondition}. How has it been since then? Have you noticed any improvement or worsening?`;
           setLiveCaptions(scriptStr);
           speak(scriptStr, () => {
-            if (micStateEnabled) toggleListening();
+            if (micStateEnabled) startListening();
           });
         } else {
           // New Patient/Intent Routing
@@ -438,7 +544,7 @@ export function Chatbot() {
             : `Thank you, ${parsedName}. How can I assist you today? Are you seeking clinical triage, general enquiries, or receptionist support?`;
           setLiveCaptions(scriptStr);
           speak(scriptStr, () => {
-            if (micStateEnabled) toggleListening();
+            if (micStateEnabled) startListening();
           });
         }
         break;
@@ -452,12 +558,12 @@ export function Chatbot() {
                 setCallState('assess_continuity');
                 const scriptStr = `Understood. Proceeding with clinical triage. Last time you reported having ${patientData.lastCondition}. How has it been since then?`;
                 setLiveCaptions(scriptStr);
-                speak(scriptStr, () => { if (micStateEnabled) toggleListening(); });
+                speak(scriptStr, () => { if (micStateEnabled) startListening(); });
              } else {
                 setCallState('chief_complaint');
                 const scriptStr = `I understand. Let's proceed with clinical triage. Please tell me what is bothering you today?`;
                 setLiveCaptions(scriptStr);
-                speak(scriptStr, () => { if (micStateEnabled) toggleListening(); });
+                speak(scriptStr, () => { if (micStateEnabled) startListening(); });
              }
          } else if (intent.includes('reception') || intent.includes('schedule') || intent.includes('appointment')) {
              setServiceType('reception');
@@ -483,7 +589,7 @@ export function Chatbot() {
         const scriptStr = `Thank you. I have logged that update. Let's do a complete symptom check-up today. Please tell me: what is the chief complaint bothering you today?`;
         setLiveCaptions(scriptStr);
         speak(scriptStr, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -494,7 +600,7 @@ export function Chatbot() {
         if (input.length < 5 || ['yes', 'no', 'hi', 'hello'].includes(input.toLowerCase())) {
           const reAsk = "Could you please tell me a bit more about what symptoms you are experiencing?";
           setLiveCaptions(reAsk);
-          speak(reAsk, () => { if (micStateEnabled) toggleListening(); });
+          speak(reAsk, () => { if (micStateEnabled) startListening(); });
           return;
         }
         
@@ -503,7 +609,7 @@ export function Chatbot() {
         const nextQ = "At what time or date did these symptoms first manifest?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -514,7 +620,7 @@ export function Chatbot() {
         const nextQ = "Got it. How would you describe the symptom?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -525,7 +631,7 @@ export function Chatbot() {
         const nextQ = "On a scale of 1 to 10, how severe is it?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -536,7 +642,7 @@ export function Chatbot() {
         const nextQ = "Is there anything that makes it better or worse?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -547,7 +653,7 @@ export function Chatbot() {
         const nextQ = "Are you having any other symptoms?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -558,7 +664,7 @@ export function Chatbot() {
         const nextQ = "Got it. Let's look at your medical history. Do you have any chronic medical conditions?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -569,7 +675,7 @@ export function Chatbot() {
         const nextQ = "Are you taking any medications?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -580,7 +686,7 @@ export function Chatbot() {
         const nextQ = "Do you have any drug allergies?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -591,7 +697,7 @@ export function Chatbot() {
         const nextQ = "Do you smoke or drink alcohol?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -603,7 +709,7 @@ export function Chatbot() {
         const nextQ = "Understood. Important safety screening: Are you experiencing any chest pain?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -620,7 +726,7 @@ export function Chatbot() {
           const nextQ = "Okay. Are you having any difficulty breathing?";
           setLiveCaptions(nextQ);
           speak(nextQ, () => {
-            if (micStateEnabled) toggleListening();
+            if (micStateEnabled) startListening();
           });
         }
         break;
@@ -638,7 +744,7 @@ export function Chatbot() {
           const nextQ = "Understood. Any severe weakness or sudden confusion?";
           setLiveCaptions(nextQ);
           speak(nextQ, () => {
-            if (micStateEnabled) toggleListening();
+            if (micStateEnabled) startListening();
           });
         }
         break;
@@ -656,7 +762,7 @@ export function Chatbot() {
           const nextQ = "And lastly, do you have any heavy bleeding?";
           setLiveCaptions(nextQ);
           speak(nextQ, () => {
-            if (micStateEnabled) toggleListening();
+            if (micStateEnabled) startListening();
           });
         }
         break;
@@ -683,7 +789,7 @@ export function Chatbot() {
         const nextQ = "Can I have your phone number so we can follow up on your condition?";
         setLiveCaptions(nextQ);
         speak(nextQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
         break;
       }
@@ -781,7 +887,7 @@ export function Chatbot() {
         const phoneQ = "Can I have your phone number so we can follow up on your condition?";
         setLiveCaptions(phoneQ);
         speak(phoneQ, () => {
-          if (micStateEnabled) toggleListening();
+          if (micStateEnabled) startListening();
         });
       }, 1000);
     });

@@ -4,6 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PrimeVita Health Services</title>
+    <script type="text/javascript">
+      window.googleTranslateElementInit = function() {
+        if (window.google && window.google.translate) {
+          const attemptInit = function() {
+            const el = document.getElementById('google_translate_element');
+            if (el) {
+              if (el.querySelector('.goog-te-combo')) {
+                return;
+              }
+              try {
+                el.innerHTML = "";
+                new window.google.translate.TranslateElement({
+                  pageLanguage: 'en',
+                  includedLanguages: 'en,yo,ig,ha,fr,es,ar',
+                  layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+                  autoDisplay: false
+                }, 'google_translate_element');
+              } catch (e) {
+                console.warn("Google Translate inner init exception:", e);
+              }
+            } else {
+              setTimeout(attemptInit, 100);
+            }
+          };
+          attemptInit();
+        }
+      };
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
   </head>
   <body>
     <div id="root"></div>

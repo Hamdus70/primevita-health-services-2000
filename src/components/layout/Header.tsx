@@ -14,21 +14,37 @@ export function Header() {
     // Define the global callback
     (window as any).googleTranslateElementInit = () => {
       if ((window as any).google && (window as any).google.translate) {
-        try {
-          new (window as any).google.translate.TranslateElement({
-            pageLanguage: 'en',
-            includedLanguages: 'en,yo,ig,ha,fr,es,ar',
-            layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE,
-            autoDisplay: false,
-          }, 'google_translate_element');
-        } catch (err) {
-          console.warn("Exception during TranslateElement initialization:", err);
-        }
+        const attemptInit = () => {
+          const el = document.getElementById('google_translate_element');
+          if (el) {
+            // Guard against double rendering / collision on routing or faster loading contexts
+            if (el.querySelector('.goog-te-combo')) {
+              return;
+            }
+            try {
+              el.innerHTML = "";
+              new (window as any).google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'en,yo,ig,ha,fr,es,ar',
+                layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: false,
+              }, 'google_translate_element');
+            } catch (err) {
+              console.warn("Exception during TranslateElement initialization:", err);
+            }
+          } else {
+            setTimeout(attemptInit, 150);
+          }
+        };
+        attemptInit();
       }
     };
 
     const loadGoogleTranslate = () => {
-      // If we already have google translate loaded, initialize directly
+      const el = document.getElementById('google_translate_element');
+      if (el && el.querySelector('.goog-te-combo')) {
+        return;
+      }
       if ((window as any).google && (window as any).google.translate) {
         try {
           (window as any).googleTranslateElementInit();
@@ -36,7 +52,6 @@ export function Header() {
           console.warn("Error calling googleTranslateElementInit:", err);
         }
       } else {
-        // Otherwise, add the script if it isn't already there
         const existingScript = document.querySelector('script[src*="element.js?cb=googleTranslateElementInit"]');
         if (!existingScript) {
           const script = document.createElement('script');
@@ -44,8 +59,6 @@ export function Header() {
           script.async = true;
           document.body.appendChild(script);
         } else {
-          // If script exists but google is not ready yet, it will call cb when loaded.
-          // In case cb is already defined, let's call it.
           if (typeof (window as any).googleTranslateElementInit === 'function') {
             try {
               (window as any).googleTranslateElementInit();
@@ -55,8 +68,7 @@ export function Header() {
       }
     };
 
-    // Delay slightly to ensure google_translate_element container is fully in DOM before initializing
-    const timer = setTimeout(loadGoogleTranslate, 100);
+    const timer = setTimeout(loadGoogleTranslate, 150);
     return () => clearTimeout(timer);
   }, []);
 
