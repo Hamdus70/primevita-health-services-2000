@@ -92,27 +92,46 @@ export function Chatbot() {
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
   const draggableRef = useRef<HTMLButtonElement>(null);
-  const mouseDownCoords = useRef<{ x: number; y: number } | null>(null);
+  const startPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastToggleTimeRef = useRef<number>(0);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    mouseDownCoords.current = { x: e.clientX, y: e.clientY };
+  const safeToggle = () => {
+    const now = Date.now();
+    if (now - lastToggleTimeRef.current > 300) {
+      setIsOpen(prev => !prev);
+      lastToggleTimeRef.current = now;
+    }
+  };
+
+  const handleDragStart = (e: any) => {
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    startPosRef.current = { x: clientX, y: clientY };
+  };
+
+  const handleStop = (e: any) => {
+    const clientX = e.clientX ?? e.changedTouches?.[0]?.clientX ?? 0;
+    const clientY = e.clientY ?? e.changedTouches?.[0]?.clientY ?? 0;
+    
+    if (clientX === 0 && clientY === 0) {
+      safeToggle();
+      return;
+    }
+
+    const dx = clientX - startPosRef.current.x;
+    const dy = clientY - startPosRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // If user dragged less than 8 pixels, count as an intentional open/close tap
+    if (distance < 8) {
+      safeToggle();
+    }
   };
 
   const handleButtonClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!mouseDownCoords.current) {
-      setIsOpen(prev => !prev);
-      return;
-    }
-    const dx = e.clientX - mouseDownCoords.current.x;
-    const dy = e.clientY - mouseDownCoords.current.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    // If user merely tapped/clicked (less than 5px drag offset), toggle open/close instantly
-    if (distance < 5) {
-      setIsOpen(prev => !prev);
-    }
-    mouseDownCoords.current = null;
+    safeToggle();
   };
 
   const scrollToBottom = () => {
@@ -949,10 +968,13 @@ export function Chatbot() {
   return (
     <>
         <div className="fixed bottom-6 left-6 z-[1000] cursor-move">
-          <DraggableComponent nodeRef={draggableRef}>
+          <DraggableComponent 
+            nodeRef={draggableRef}
+            onStart={handleDragStart}
+            onStop={handleStop}
+          >
             <button 
               ref={draggableRef as React.RefObject<HTMLButtonElement>}
-              onMouseDown={handleMouseDown}
               onClick={handleButtonClick}
               className="p-4 bg-[#10837f] text-white rounded-full shadow-lg hover:shadow-2xl hover:scale-110 transition-all flex items-center gap-2 group border-4 border-white">
               <MessageSquare size={24} />
