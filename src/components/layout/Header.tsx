@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, MessageSquareText, FileText, CheckCircle, UserPlus, Menu, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { CustomLanguageTranslator } from './CustomLanguageTranslator';
 
 
 export function Header() {
@@ -26,7 +27,6 @@ export function Header() {
               new (window as any).google.translate.TranslateElement({
                 pageLanguage: 'en',
                 includedLanguages: 'en,yo,ig,ha,fr,es,ar',
-                layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE,
                 autoDisplay: false,
               }, 'google_translate_element');
             } catch (err) {
@@ -88,7 +88,12 @@ export function Header() {
         
         {/* Right Content */}
         <div className="flex items-center gap-4">
-            <div id="google_translate_element" className="flex items-center text-[10px] font-bold"></div>
+            {/* Elegant, prominent language drop-down with custom Google icon */}
+            <div className="flex items-center z-50">
+                <CustomLanguageTranslator />
+                {/* Keep Google Translate API container hidden in DOM */}
+                <div id="google_translate_element" className="hidden"></div>
+            </div>
             <nav className="hidden lg:flex items-center gap-6 text-[12px] font-bold tracking-wide text-[#0e4e5e] uppercase">
                 <Link to="/about" className="hover:text-[#10837f] transition-colors">ABOUT US</Link>
                 
