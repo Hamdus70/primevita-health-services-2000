@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { SecurePatientChat } from './SecurePatientChat';
 import { MapPin, Users, HeartPulse, FileSignature, Stethoscope, AlertCircle, FileText, Send, User, UserCheck, Calendar, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
 
 export function DoctorDashboardView() {
   const [clockedIn, setClockedIn] = useState(false);
@@ -28,6 +28,30 @@ export function DoctorDashboardView() {
 
   // Form states for Clinical Notes
   const [soapNote, setSoapNote] = useState('');
+  const [liveNotes, setLiveNotes] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!selectedPatient) return;
+    const q = query(
+      collection(db, 'clinicalNotes'),
+      where('patientId', '==', selectedPatient)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const list: any[] = [];
+      snap.forEach(d => {
+        list.push({ id: d.id, ...d.data() });
+      });
+      list.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+        return timeB - timeA;
+      });
+      setLiveNotes(list);
+    }, (err) => {
+      console.error("Doctor clinicNotes fetch error:", err);
+    });
+    return unsub;
+  }, [selectedPatient]);
 
   const handleSendRx = async () => {
       if (!selectedPatient || !user) return;
@@ -184,6 +208,35 @@ export function DoctorDashboardView() {
                                           <Button size="sm" className="text-xs h-8 bg-[#10837f] hover:bg-[#0c6b68]" onClick={() => toast.success("Timeline updated.")}><Send className="w-3 h-3 mr-1" /> Post</Button>
                                       </div>
                                   </div>
+
+                                  {/* Live EMR Telehealth Logs */}
+                                  {liveNotes.map((log) => (
+                                       <div key={log.id} className="flex flex-col md:flex-row gap-4 relative text-left md:ml-16">
+                                           <div className="hidden md:flex w-10 h-10 rounded-full bg-teal-100 border-2 border-white shadow items-center justify-center shrink-0 z-10 text-teal-600">
+                                              <Stethoscope className="w-5 h-5" />
+                                           </div>
+                                           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex-1">
+                                               <div className="flex justify-between items-center mb-2 pb-2 border-b">
+                                                   <span className="font-bold text-sm text-[#0e4e5e] flex items-center gap-1.5">
+                                                       {log.noteType === 'telehealth_call' ? '📞 Telehealth Voice Triage Summary' : '📝 Progress Note'}
+                                                   </span>
+                                                   <span className="text-xs text-slate-400">
+                                                       {log.createdAt ? (log.createdAt.toDate ? log.createdAt.toDate().toLocaleString() : 'Just now') : 'Just now'}
+                                                   </span>
+                                               </div>
+                                               {log.noteType === 'telehealth_call' ? (
+                                                   <div className="space-y-2 mt-2">
+                                                        <p className="text-xs text-gray-700 leading-relaxed"><strong className="text-[#0e4e5e]">Subjective:</strong> {log.subjective}</p>
+                                                        {log.objective && <p className="text-xs text-gray-700 leading-relaxed"><strong className="text-red-700">Objective:</strong> {log.objective}</p>}
+                                                        {log.assessment && <p className="text-xs text-gray-700 leading-relaxed"><strong className="text-amber-800">Assessment:</strong> {log.assessment}</p>}
+                                                        {log.plan && <p className="text-xs text-gray-700 leading-relaxed"><strong className="text-emerald-800">Plan:</strong> {log.plan}</p>}
+                                                   </div>
+                                               ) : (
+                                                   <p className="text-sm text-slate-600">{log.plan || log.subjective || ''}</p>
+                                               )}
+                                           </div>
+                                       </div>
+                                  ))}
 
                                   {selectedPatient === 'CL-MS-0002' ? (
                                       <>

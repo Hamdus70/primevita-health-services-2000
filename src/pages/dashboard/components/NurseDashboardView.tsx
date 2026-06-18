@@ -884,14 +884,44 @@ function PatientFileView({ patient, onBack, nurse, role, user }: { patient: any,
                             <CardContent className="pt-4 overflow-y-auto">
                                 <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
                                     {notesLog.map((log: any, i) => (
-                                        <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                        <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active text-left">
                                             <div className="flex items-center justify-center w-4 h-4 rounded-full border border-white bg-[#10837f] shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 absolute left-3 md:left-1/2" />
                                             <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] ml-10 md:ml-0 p-4 rounded-xl border border-gray-100 bg-white shadow-sm">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="font-bold text-[#0e4e5e] text-sm">{nurse.fullName}</span>
+                                                    <span className="font-bold text-[#0e4e5e] text-sm">
+                                                        {log.authorId === 'Voice AI Triage Nurse' ? '🤖 Telehealth Voice AI Triage' : (log.authorName || nurse.fullName)}
+                                                    </span>
                                                     <time className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded">{log.time}</time>
                                                 </div>
-                                                <div className="text-sm text-gray-600 leading-relaxed">{log.text}</div>
+                                                {log.noteType === 'telehealth_call' ? (
+                                                    <div className="space-y-3 mt-2 border-l-2 border-teal-500 pl-3">
+                                                        <div className="text-xs font-semibold text-teal-800 bg-teal-50 px-2 py-1 rounded inline-block">📞 Voice Hotline Call Session</div>
+                                                        <div className="text-xs text-gray-700 bg-slate-50 p-2.5 rounded border">
+                                                            <strong className="text-[#0e4e5e]">Subjective (Chief Complaint & History)</strong>
+                                                            <p className="mt-1 leading-relaxed text-gray-650">{log.subjective}</p>
+                                                        </div>
+                                                        {log.objective && (
+                                                            <div className="text-xs text-gray-700 bg-slate-50 p-2.5 rounded border">
+                                                                <strong className="text-red-700">Objective (Red Flags Screening)</strong>
+                                                                <p className="mt-1 leading-relaxed text-gray-650">{log.objective}</p>
+                                                            </div>
+                                                        )}
+                                                        {log.assessment && (
+                                                            <div className="text-xs text-gray-700 bg-slate-50 p-2.5 rounded border">
+                                                                <strong className="text-amber-800">Assessment (AI Diagnostic Reasoning)</strong>
+                                                                <p className="mt-1 leading-relaxed text-gray-650">{log.assessment}</p>
+                                                            </div>
+                                                        )}
+                                                        {log.plan && (
+                                                            <div className="text-xs text-gray-700 bg-slate-50 p-2.5 rounded border">
+                                                                <strong className="text-emerald-800">Plan (Physician Action & Care Plan)</strong>
+                                                                <p className="mt-1 leading-relaxed text-gray-650">{log.plan}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-sm text-gray-600 leading-relaxed">{log.text}</div>
+                                                )}
                                             </div>
                                         </div>
                                     ))}

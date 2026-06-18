@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
+import { GoogleGenAI } from "@google/genai";
 import { sendAdminNotification } from './src/lib/email/admin';
 import { sendOTP, verifyOTP } from './src/lib/email/otp';
 import { sendTrackingLink } from './src/lib/email/tracking';
@@ -121,6 +122,110 @@ async function createServer() {
         } catch (error: any) {
             return res.status(500).json({ error: "Internal Server Error" });
         }
+    });
+
+    app.post('/api/chat', async (req, res) => {
+        try {
+            const { message } = req.body;
+            if (!message) return res.status(400).json({ error: 'Message is required' });
+
+            // Set SSE headers for streaming
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+
+            const apiKey = process.env.GEMINI_API_KEY;
+            const models = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+            let successful = false;
+
+            const SYSTEM_PROMPT = `
+You are the official AI Assistant of this platform.
+You operate simultaneously as: AI Assistant Chatbot, AI Voice Call Agent, Customer Support Representative, Product Guide, Knowledge Assistant, Sales Assistant, User Success Assistant, Information Concierge, Navigation Assistant.
+
+Your mission is to provide fast, intelligent, natural, and highly useful assistance to every visitor and customer.
+You should act as a multi-purpose AI assistant. Be capable of understanding and responding to questions related to Platform information, Features, Services, Pricing, Products, Membership plans, Research assistance, Technical support, User onboarding, General questions, Contact information, Company information, Policies, Tutorials, Frequently asked questions, Website navigation, Documentation, Blog articles, Announcements, Events, Career opportunities, Integrations, Partnerships, Billing questions, and Account management.
+
+If information is unavailable: Say "I currently do not have access to that specific information. I can connect you with our team or direct you to the appropriate page."
+
+Never fabricate information.
+
+When acting as a voice call agent: Speak naturally, use short sentences, pause appropriately, sound professional, avoid overly long explanations, and break information into manageable chunks. If you need to initiate triage or support, do so politely.
+
+Be conversational, polite, professional, and never robotic.
+`;
+
+            const streamTextFallback = async (text: string) => {
+                const words = text.split(" ");
+                let idx = 0;
+                while (idx < words.length) {
+                    const chunk = words.slice(idx, idx + 3).join(" ") + " ";
+                    res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+                    idx += 3;
+                    await new Promise(resolve => setTimeout(resolve, 60));
+                }
+                res.write("data: [DONE]\n\n");
+                res.end();
+            };
+
+            if (apiKey) {
+                const ai = new GoogleGenAI({ apiKey });
+                for (const model of models) {
+                    try {
+                        const responseStream = await ai.models.generateContentStream({
+                            model: model,
+                            contents: message,
+                            config: {
+                                systemInstruction: SYSTEM_PROMPT,
+                            }
+                        });
+
+                        for await (const chunk of responseStream) {
+                            const textChunk = chunk.text;
+                            if (textChunk) {
+                                res.write(`data: ${JSON.stringify({ chunk: textChunk })}\n\n`);
+                            }
+                        }
+                        res.write("data: [DONE]\n\n");
+                        res.end();
+                        successful = true;
+                        break;
+                    } catch (err: any) {
+                        console.warn(`Model ${model} failed to stream in server API:`, err.message || err);
+                    }
+                }
+            }
+
+            if (!successful) {
+                // Generate a highly caring patient-centered professional fallback response
+                const text = message.toLowerCase();
+                let replyText = "";
+                if (text.includes("fever") || text.includes("temp") || text.includes("hot")) {
+                    replyText = "Thank you for sharing your symptoms. A fever is usually a natural response to help fight off an infection. Please monitor your temperature regularly, drink plenty of clear fluids, rest, and keep a log of your readings here in your EMR. If your temperature exceeds 103°F (39.4°C) or is accompanied by confusion, difficulty breathing, or severe head pain, please seek immediate emergency care.";
+                } else if (text.includes("bp") || text.includes("blood pressure") || text.includes("hypertension") || text.includes("heart")) {
+                    replyText = "Monitoring your blood pressure is extremely important. Normal resting blood pressure is generally under 120/80 mmHg. Prior to measuring, please sit quietly for at least five minutes with your back supported and feet flat. Use the EMR Vital Signs tab to record your readings. If you experience crushing chest pain, unexplained shortness of breath, or numbness, please dial 911 or visit the nearest ER immediately.";
+                } else if (text.includes("pain") || text.includes("hurt") || text.includes("ache")) {
+                    replyText = "I am sorry to hear that you are experiencing discomfort. Please let your clinical team know by logging the exact area of pain, its onset, and severity (1 to 10) in your Nursing Report or Patient Portal. Avoid strenuous activities. If the pain is sudden, unusually severe, or feels like pressure or tightness in your chest, seek emergency medical services right away.";
+                } else if (text.includes("hi") || text.includes("hello") || text.includes("help") || text.includes("hey")) {
+                    replyText = "Hello! I am your virtual Telehealth Medical Assistant. I can explain general healthcare concepts, guide you on how to log measurements like your blood pressure, temperature, and fluid intake in your Patient Portal EMR, and point you to the right portal for your nurse or doctor. For security and clinical safety, remember that I do not prescribe medications. How can I assist you today?";
+                } else {
+                    replyText = "Thank you for reaching out to your Telehealth Portal. To assist your care team best, please ensure your latest vital signs (temperature, blood pressure, pulse) and any daily notes are logged in your EMR. Your assigned nurse and doctor review these updates continuously to coordinate your home care plans. If you are experiencing high-risk symptoms or a medical emergency, please contact 911 immediately.";
+                }
+                
+                await streamTextFallback(replyText);
+            }
+        } catch (error: any) {
+             console.error('API Error in chat streaming:', error);
+             // Since headers might already have been sent, handle safe writing
+             try {
+                 res.write(`data: ${JSON.stringify({ error: 'I am sorry, I am having trouble connecting to the medical support team right now. Please try again in a few moments.' })}\n\n`);
+                 res.write("data: [DONE]\n\n");
+                 res.end();
+             } catch (e) {
+                 if (!res.headersSent) {
+                     res.status(500).json({ error: 'System connection issue' });
+                 }
+             }
+         }
     });
 
     app.post('/api/staff/apply', async (req, res) => {

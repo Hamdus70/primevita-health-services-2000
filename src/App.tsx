@@ -36,6 +36,7 @@ import { ApplicationPortal } from '@/pages/ApplicationPortal';
 import ApplicationTracker from '@/pages/ApplicationTracker';
 import { RoleSwitcher } from '@/components/dev/RoleSwitcher';
 import { CommandPalette } from '@/components/CommandPalette';
+import { Chatbot } from '@/components/chat/Chatbot';
 import { TelehealthChatWidget } from '@/components/TelehealthChatWidget';
 
 import TrackProgressPage from '@/pages/TrackProgressPage';
@@ -47,6 +48,7 @@ export default function App() {
       <BrowserRouter>
         <div className="flex min-h-screen flex-col">
         <CommandPalette />
+        <Chatbot />
         <RoleSwitcher />
         <TelehealthChatWidget />
         <Toaster position="top-right" richColors />
