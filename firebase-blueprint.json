@@ -272,6 +272,21 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["appType", "fullName", "email", "status", "createdAt"]
+    },
+    "Testimonial": {
+      "title": "Client Testimonial",
+      "description": "Client feedback and success stories",
+      "type": "object",
+      "properties": {
+        "clientName": { "type": "string" },
+        "relation": { "type": "string" },
+        "rating": { "type": "number" },
+        "text": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "isApproved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientName", "rating", "text", "isApproved", "createdAt"]
     }
   },
   "firestore": {
@@ -342,6 +357,10 @@
     "/auditLogs/{logId}": {
       "schema": { "$ref": "AuditLog" },
       "description": "System-wide immutable audit trail"
+    },
+    "/testimonials/{testimonialId}": {
+      "schema": { "$ref": "Testimonial" },
+      "description": "Client testimonials and success stories"
     }
   }
 }

@@ -2,7 +2,7 @@ import { Mail, Phone, MapPin, Send, Clock, ShieldCheck, Loader2 } from 'lucide-r
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useForm, ValidationError } from '@formspree/react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export function ContactPage() {
   const location = useLocation();

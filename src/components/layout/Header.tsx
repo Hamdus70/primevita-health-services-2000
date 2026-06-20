@@ -94,26 +94,27 @@ export function Header() {
                 {/* Keep Google Translate API container hidden in DOM */}
                 <div id="google_translate_element" className="hidden"></div>
             </div>
-            <nav className="hidden lg:flex items-center gap-6 text-[12px] font-bold tracking-wide text-[#0e4e5e] uppercase">
+            <nav className="hidden lg:flex items-center gap-6 text-[11px] font-bold tracking-wide text-[#0e4e5e] uppercase">
                 <Link to="/about" className="hover:text-[#10837f] transition-colors">ABOUT US</Link>
                 
                 <div className="relative group h-full items-center">
                   <div className="flex items-center h-full py-4 cursor-pointer">
                       <Link to="/services" className="hover:text-[#10837f] transition-colors flex items-center gap-1">
-                          SERVICES <ChevronDown className="w-4 h-4 group-hover:rotate-180 transition-transform" />
+                          SERVICES <ChevronDown className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform" />
                       </Link>
                   </div>
                   <div className="absolute left-0 top-[calc(100%-0.5rem)] w-60 bg-white shadow-xl border border-[#10837f]/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 rounded-xl overflow-hidden pt-2">
-                      <Link to="/services" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-bold text-[12px] border-b border-gray-50">All Services</Link>
-                      <Link to="/services/home-nursing" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[11px] border-b border-gray-50">Home Nursing</Link>
-                      <Link to="/services/elderly-care" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[11px] border-b border-gray-50">Elderly Care</Link>
-                      <Link to="/services/post-hospital-recovery" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[11px] border-b border-gray-50">Post-Hospital Recovery</Link>
-                      <Link to="/services/dementia-care" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[11px] border-b border-gray-50">Dementia Care</Link>
-                      <Link to="/services/physiotherapy" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[11px]">Physiotherapy</Link>
+                       <Link to="/services" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-bold text-[11px] border-b border-gray-50">All Services</Link>
+                       <Link to="/services/home-nursing" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[10px] border-b border-gray-50">Home Nursing</Link>
+                       <Link to="/services/elderly-care" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[10px] border-b border-gray-50">Elderly Care</Link>
+                       <Link to="/services/post-hospital-recovery" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[10px] border-b border-gray-50">Post-Hospital Recovery</Link>
+                       <Link to="/services/dementia-care" className="block px-5 py-3 hover:bg-emerald-50 hover:text-[#10837f] transition-colors font-semibold text-[10px] border-b border-gray-50">Dementia Care</Link>
+                       <Link to="/services/physiotherapy" className="block px-5 py-3 hover:bg-[#10837f]/10 hover:text-[#10837f] transition-colors font-semibold text-[10px]">Physiotherapy</Link>
                   </div>
                 </div>
 
                 <Link to="/faqs" className="hover:text-[#10837f] transition-colors py-4">FAQs</Link>
+                <Link to="/testimonials" className="hover:text-[#10837f] transition-colors py-4">TESTIMONIALS</Link>
                 
                 <Link to="/refer-patient" className="hidden lg:flex items-center gap-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 px-3 py-2 rounded-full transition-colors text-[10px] font-bold">
                     <UserPlus className="w-3.5 h-3.5" />
@@ -130,17 +131,17 @@ export function Header() {
             </nav>
 
             {/* CTA Buttons */}
-            <div className="flex gap-2 items-center">
-              <Link to="/dashboard" className="bg-[#d8a846] text-white px-3 py-1.5 rounded-full flex items-center gap-2 hover:bg-[#b58b35] transition-colors shadow-[0_4px_10px_rgba(216,168,70,0.3)] text-xs font-bold">
+            <div className="flex gap-1 md:gap-1.5 items-center">
+              <Link to="/dashboard" className="bg-[#d8a846] text-white px-2 py-1 rounded-full flex items-center gap-1 hover:bg-[#b58b35] active:scale-95 transition-all duration-200 shadow-[0_3px_8px_rgba(216,168,70,0.2)] text-[9px] md:text-[10px] font-bold shrink-0">
                   MY PORTAL
               </Link>
-              <Link to="/contact" className="bg-[#10837f] text-white p-3 rounded-full flex items-center justify-center hover:bg-[#0c6b68] transition-colors shadow-[0_4px_10px_rgba(16,131,127,0.3)]">
-                  <MessageSquareText className="w-5 h-5" />
+              <Link to="/contact" className="bg-[#10837f] text-white p-2 md:p-2.5 rounded-full flex items-center justify-center hover:bg-[#0c6b68] active:scale-95 transition-all duration-200 shadow-[0_3px_8px_rgba(16,131,127,0.2)] shrink-0">
+                  <MessageSquareText className="w-4 h-4 md:w-4.5 md:h-4.5" />
               </Link>
               
               {/* Menu Button for small screens */}
               <button className="p-2 text-[#0e4e5e]" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                 {isMenuOpen ? <X /> : <Menu />}
+                 {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
         </div>
@@ -168,6 +169,7 @@ export function Header() {
                 </div>
 
                 <Link to="/faqs" onClick={() => setIsMenuOpen(false)}>FAQs</Link>
+                <Link to="/testimonials" onClick={() => setIsMenuOpen(false)}>TESTIMONIALS</Link>
                 <Link to="/refer-patient" onClick={() => setIsMenuOpen(false)}>REFER PATIENT</Link>
                 <Link to="/apply" onClick={() => setIsMenuOpen(false)}>JOIN NETWORK</Link>
                 <a href="https://drive.google.com/file/d/1ofsvGJycBn-JpVeUn9NNW4o1KR0JeIjl/view?usp=sharing" target="_blank" rel="noopener noreferrer" onClick={() => setIsMenuOpen(false)}>GOVERNMENT LICENSE</a>

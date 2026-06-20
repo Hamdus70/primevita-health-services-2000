@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { HeartHandshake, Home, Users, Pill, ArrowRight } from 'lucide-react';
+import { HeartHandshake, Home, Users, Pill, ArrowRight, Star, MessageSquareQuote, Video } from 'lucide-react';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { motion } from 'motion/react';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 
 const services = [
-  { title: 'Carers - Personal Aides', description: 'Support for activities of daily living.', icon: Users, image: 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&q=80&w=800' },
+  { title: 'Carers - Personal Aides', description: 'Support for activities of daily living.', icon: Users, image: 'https://images.unsplash.com/photo-1576766145347-1a1a79db1270?auto=format&fit=crop&q=80&w=800' },
   { title: 'Nursing Services', description: 'Professional home-based medical care.', icon: Pill, image: 'https://images.unsplash.com/photo-1581056771107-24ca5f033842?auto=format&fit=crop&q=80&w=800' },
   { title: 'Nursing Assistant Service', description: 'Support for daily activities by trained assistants.', icon: Home, image: 'https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800' },
   { title: 'Dementia Care', description: 'Specialized support for those with dementia.', icon: HeartHandshake, image: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=800' },
@@ -173,6 +173,102 @@ export function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Preview Section */}
+      <section className="py-24 bg-white relative overflow-hidden">
+        <div className="absolute top-1/2 left-0 w-72 h-72 bg-emerald-50/50 rounded-full blur-3xl -translate-y-1/2 -translate-x-12"></div>
+        <div className="absolute top-12 right-0 w-96 h-96 bg-[#d8a846]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-24"></div>
+
+        <div className="container mx-auto px-4 md:px-6 relative z-10">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="bg-[#10837f]/10 text-[#0e4e5e] font-bold text-xs uppercase tracking-wider px-4 py-1.5 rounded-full inline-block mb-3">
+              Healing Partnerships
+            </span>
+            <h2 className="text-3xl md:text-5xl font-bold text-[#0e4e5e] mb-4 font-heading tracking-tight">Stories of Warmth &amp; Recovery</h2>
+            <p className="text-gray-600 font-light leading-relaxed">
+              Read how our dedicated team of nurses, physiotherapists, and elderly companions bring relief to healthcare patients and their loved ones in Nigeria.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
+            {/* Story 1 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="bg-[#fbfcfa] border border-emerald-50 rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow relative"
+            >
+              <MessageSquareQuote className="absolute top-6 right-6 text-emerald-100/70 w-12 h-12" />
+              <div>
+                <div className="flex text-[#d8a846] gap-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((s) => <Star key={s} className="w-3.5 h-3.5 fill-current" />)}
+                </div>
+                <p className="text-gray-600 text-sm leading-relaxed mb-6 italic">
+                  "PrimeVita was a lifesaver. Their registered nurse visits my 82-year-old mother thrice a week. They monitor her BP, manage her medication, and give us complete peace of mind through their real-time portal notes."
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-100">
+                <h4 className="font-bold text-[#0e4e5e] text-sm">Mrs. Funmilayo Adebayo</h4>
+                <p className="text-xs text-gray-500">Daughter of Patient (Lagos)</p>
+              </div>
+            </motion.div>
+
+            {/* Story 2 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="bg-[#fbfcfa] border border-emerald-50 rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow relative"
+            >
+              <MessageSquareQuote className="absolute top-6 right-6 text-emerald-100/70 w-12 h-12" />
+              <div>
+                <div className="flex text-[#d8a846] gap-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((s) => <Star key={s} className="w-3.5 h-3.5 fill-current" />)}
+                  <span className="bg-amber-50 text-[#b58b35] border border-amber-100 font-black text-[9px] px-2 rounded-full uppercase scale-90 translate-x-2 shrink-0">Video Included</span>
+                </div>
+                <p className="text-gray-600 text-sm leading-relaxed mb-6 italic">
+                  "Following my father’s mild stroke, we were worried. PrimeVita’s physiotherapist visited daily. His mobility increased remarkably within a month. The team is professional, responsive, and loving."
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-100">
+                <h4 className="font-bold text-[#0e4e5e] text-sm flex items-center gap-1">
+                  Dr. Emeka Okafor
+                  <Video className="w-3 h-3 text-[#10837f]" />
+                </h4>
+                <p className="text-xs text-gray-500">Son of Stroke Patient (Enugu)</p>
+              </div>
+            </motion.div>
+
+            {/* Video & Submit Callout Info block */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="bg-gradient-to-br from-[#10837f] to-[#0e4e5e] text-white rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full"></div>
+              <div>
+                <Video className="w-10 h-10 text-[#d8a846] mb-4" strokeWidth={1.5} />
+                <h3 className="font-heading font-bold text-lg mb-2">Share Your Recovery</h3>
+                <p className="text-xs text-white/80 leading-relaxed mb-6">
+                  Did our physical therapists, nurses, or caregivers help your family? We invite you to submit a 1-minute video testimony or text review! Paste your file/cloud links in our submission box.
+                </p>
+              </div>
+              <div>
+                <Link 
+                  to="/testimonials" 
+                  className="inline-flex items-center justify-center bg-[#d8a846] text-[#0e4e5e] hover:bg-white hover:text-[#0e4e5e] font-bold text-xs px-5 py-3 rounded-xl transition-all w-full gap-2 shadow"
+                >
+                  Share Story or Watch Videos
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>

@@ -20,7 +20,8 @@ import {
     FileText, UserCog, UserCheck, UserX, 
     Bell, CreditCard, Megaphone, DollarSign, 
     Clock, ShieldCheck, CheckCircle2, AlertCircle,
-    User, Search, Plus, FileSignature, Calendar, Video, History, Database, ArrowRight
+    User, Search, Plus, FileSignature, Calendar, Video, History, Database, ArrowRight,
+    Star, MessageSquareQuote
 } from 'lucide-react';
 import { AIInvestigatorAdminView } from './components/AIInvestigatorAdminView';
 import { AdminEmergencyAlerts } from '@/components/GlobalEmergencyAlert';
@@ -136,6 +137,39 @@ export function AdminDashboard() {
   const [announcements, setAnnouncements] = useState(INITIAL_ANNOUNCEMENTS);
   const [auditLogs, setAuditLogs] = useState(INITIAL_AUDIT_LOGS);
   const [metrics, setMetrics] = useState(INITIAL_METRICS);
+  
+  // Testimonials state and handlers
+  const [adminTestimonials, setAdminTestimonials] = useState<any[]>([]);
+
+  const handleApproveTestimonial = async (id: string) => {
+      try {
+          await updateDoc(doc(db, 'testimonials', id), { isApproved: true });
+          toast.success("Testimonial approved & made live instantly!");
+      } catch (err) {
+          toast.error("Failed to approve testimonial.");
+      }
+  };
+
+  const handleRejectTestimonial = async (id: string) => {
+      try {
+          await updateDoc(doc(db, 'testimonials', id), { isApproved: false });
+          toast.info("Testimonial set back to draft / pending review.");
+      } catch (err) {
+          toast.error("Failed to reset testimonial status.");
+      }
+  };
+
+  const handleDeleteTestimonial = async (id: string) => {
+      if (confirm("Are you sure you want to permanently delete this client story?")) {
+          try {
+              const { deleteDoc } = await import('firebase/firestore');
+              await deleteDoc(doc(db, 'testimonials', id));
+              toast.success("Client story permanently deleted.");
+          } catch (err) {
+              toast.error("Failed to delete client story.");
+          }
+      }
+  };
   
   // Assignment dialog state
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -314,6 +348,20 @@ export function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    const qTestimonials = query(collection(db, 'testimonials'), orderBy('createdAt', 'desc'));
+    const unsubscribeTestimonials = onSnapshot(qTestimonials, (snapshot) => {
+        const list = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        setAdminTestimonials(list);
+    }, (error) => {
+        console.warn("Error getting admin reviews snapshot:", error);
+    });
+    return () => unsubscribeTestimonials();
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     const qStaff = query(collection(db, 'users'));
     const unStaff = onSnapshot(qStaff, (snap) => {
@@ -487,6 +535,9 @@ export function AdminDashboard() {
                         AI Investigator <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-bold">New</span>
                     </TabsTrigger>
                     <TabsTrigger value="announcements" className="py-2.5 px-4 rounded-lg data-[state=active]:bg-[#10837f] data-[state=active]:text-white">Announcements</TabsTrigger>
+                    <TabsTrigger value="testimonials" className="py-2.5 px-4 rounded-lg data-[state=active]:bg-[#10837f] data-[state=active]:text-white flex items-center gap-1.5">
+                        Client Reviews <span className="bg-[#d8a846] text-[#0e4e5e] text-[10px] px-1.5 py-0.5 rounded-full font-bold">{adminTestimonials.filter(t => !t.isApproved).length}</span>
+                    </TabsTrigger>
                     <TabsTrigger value="audit" className="py-2.5 px-4 rounded-lg data-[state=active]:bg-[#10837f] data-[state=active]:text-white">Audit Logs</TabsTrigger>
                 </TabsList>
             </div>
@@ -1222,6 +1273,122 @@ export function AdminDashboard() {
                                 ))}
                             </tbody>
                         </table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            {/* 10. CLIENT REVIEWS & TESTIMONIALS MODERATION */}
+            <TabsContent value="testimonials" className="space-y-6">
+                <Card className="border-0 shadow-sm ring-1 ring-gray-100">
+                    <CardHeader className="bg-gray-50/50 border-b pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle className="text-lg flex items-center gap-2"><Megaphone className="w-5 h-5 text-[#10837f]" /> Client Success Stories Moderation</CardTitle>
+                            <CardDescription>Approve or draft patient and family-written feedback reviews and video diary URLs.</CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className="bg-amber-100 text-[#b58b35] font-bold text-xs px-3.5 py-1.5 rounded-full flex items-center gap-1">
+                                {adminTestimonials.filter(t => !t.isApproved).length} Pending Review
+                            </span>
+                            <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3.5 py-1.5 rounded-full flex items-center gap-1">
+                                {adminTestimonials.filter(t => t.isApproved).length} Made Live
+                            </span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0 overflow-x-auto">
+                        {adminTestimonials.length === 0 ? (
+                            <div className="p-12 text-center text-gray-400">
+                                <MessageSquareQuote className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                                <h4 className="font-heading font-bold text-sm text-gray-600 mb-1">No Submissions Found</h4>
+                                <p className="text-xs text-gray-500 max-w-sm mx-auto">No client testimonials have been posted into Firestore databases yet. Submit stories on the Testimonials page to test this live moderation deck!</p>
+                            </div>
+                        ) : (
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-[#f8fcfc] border-b text-gray-600 font-medium">
+                                    <tr>
+                                        <th className="p-4">Author Details</th>
+                                        <th className="p-4">Review Text</th>
+                                        <th className="p-4">Rating Given</th>
+                                        <th className="p-4">Video Link</th>
+                                        <th className="p-4">Publishing Status</th>
+                                        <th className="p-4 text-right">Moderator Decisions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {adminTestimonials.map((story) => (
+                                        <tr key={story.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4">
+                                                <div className="font-bold text-gray-900">{story.clientName}</div>
+                                                <div className="text-xs text-gray-500 font-semibold">{story.relation}</div>
+                                                <div className="text-[10px] text-gray-400 mt-1">
+                                                    {story.createdAt?.toDate ? story.createdAt.toDate().toLocaleDateString() : 'Active Static Data'}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 max-w-sm">
+                                                <p className="text-xs text-gray-600 italic line-clamp-3 leading-relaxed">
+                                                    "{story.text}"
+                                                </p>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex text-[#d8a846] gap-0.5">
+                                                    {Array.from({ length: story.rating || 5 }).map((_, i) => (
+                                                        <Star key={i} className="w-3 h-3 fill-current" />
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                {story.videoUrl ? (
+                                                    <a
+                                                        href={story.videoUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1 text-[#10837f] hover:underline font-mono text-[11px] font-bold"
+                                                    >
+                                                        <Video className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                                                        Preview Video Link
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-xs text-gray-300">No Video Included</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide shrink-0 ${
+                                                    story.isApproved
+                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                                }`}>
+                                                    {story.isApproved ? '● Published Live' : '○ Pending Approval'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="flex justify-end gap-2.5">
+                                                    {!story.isApproved ? (
+                                                        <button
+                                                            onClick={() => handleApproveTestimonial(story.id)}
+                                                            className="bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 font-black text-[10px] px-2.5 py-1.5 rounded-lg border border-emerald-200 transition-all active:scale-95"
+                                                        >
+                                                            Approve Story
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleRejectTestimonial(story.id)}
+                                                            className="bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg border border-amber-200 transition-all active:scale-95"
+                                                        >
+                                                            Set to Draft
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDeleteTestimonial(story.id)}
+                                                        className="bg-red-50 hover:bg-red-600 hover:text-white text-red-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg border border-red-100 transition-all active:scale-95"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </CardContent>
                 </Card>
             </TabsContent>

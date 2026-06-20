@@ -306,6 +306,31 @@ service cloud.firestore {
                     incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
     }
 
+    // ----- Testimonials -----
+    match /testimonials/{testimonialId} {
+      // Allow reading approved testimonials or allow admins to read all
+      allow read: if resource.data.isApproved == true || isAdmin();
+      
+      function isValidTestimonial(data) {
+         return data.keys().hasAll(['clientName', 'rating', 'text', 'isApproved', 'createdAt']) &&
+                data.clientName is string && data.clientName.size() > 0 && data.clientName.size() <= 100 &&
+                data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+                data.text is string && data.text.size() > 0 && data.text.size() <= 3000 &&
+                data.isApproved == false &&
+                data.createdAt == request.time;
+      }
+      // Public review submission
+      allow create: if isValidTestimonial(incoming());
+      // Admin update for approval/rejection or deletion
+      allow update: if isAdmin() && 
+                    incoming().clientName == existing().clientName &&
+                    incoming().rating == existing().rating &&
+                    incoming().text == existing().text &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['isApproved']) &&
+                    incoming().isApproved is bool;
+      allow delete: if isAdmin();
+    }
+
     // ----- Care Requests (Public Assessment forms) -----
     match /care_requests/{requestId} {
       allow create: if true;

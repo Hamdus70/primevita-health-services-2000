@@ -17,7 +17,7 @@ const SERVICES = [
     title: "Elderly Care",
     description: "Compassionate, professional assistance with daily living to support seniors maintaining independence.",
     icon: ShieldCheck,
-    image: "https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    image: "https://images.unsplash.com/photo-1576766145347-1a1a79db1270?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
     color: "#d8a846"
   },
   {

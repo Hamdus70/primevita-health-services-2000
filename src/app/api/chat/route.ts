@@ -1,81 +1,61 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from "@google/genai";
+import { NextResponse } from 'next/server';
+import { GoogleGenAI } from '@google/genai';
+import { primeVitaSystemPrompt } from '@/data/primevita_system_prompt';
+import { phase1Constitution } from '@/data/knowledge_base/phase_1_constitution';
+import { phase2Services } from '@/data/knowledge_base/phase_2_services';
+import { phase3Portals } from '@/data/knowledge_base/phase_3_portals';
+import { phase4Appointment } from '@/data/knowledge_base/phase_4_appointment';
+import { phase5PatientJourney } from '@/data/knowledge_base/phase_5_patient_journey';
+import { phase6ClinicalJourney } from '@/data/knowledge_base/phase_6_clinical_journey';
+import { phase7Recruitment } from '@/data/knowledge_base/phase_7_recruitment';
+import { phase8Billing } from '@/data/knowledge_base/phase_8_billing';
+import { phase9Emr } from '@/data/knowledge_base/phase_9_emr';
+import { phase10Medical } from '@/data/knowledge_base/phase_10_medical';
+import { phase11CustomerService } from '@/data/knowledge_base/phase_11_customer_service';
+import { phase12Voice } from '@/data/knowledge_base/phase_12_voice';
+import { phase13Whatsapp } from '@/data/knowledge_base/phase_13_whatsapp';
+import { phase14Admin } from '@/data/knowledge_base/phase_14_admin';
+import { phase15Escalation } from '@/data/knowledge_base/phase_15_escalation';
+import { phase16Conversation } from '@/data/knowledge_base/phase_16_conversation';
+import { phase17Doctor } from '@/data/knowledge_base/phase_17_doctor';
+import { phase18Nurse } from '@/data/knowledge_base/phase_18_nurse';
+import { phase19Safety } from '@/data/knowledge_base/phase_19_safety';
+import { phase20Conclusion } from '@/data/knowledge_base/phase_20_conclusion';
 
-let ai: GoogleGenAI | null = null;
+const aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-function getAIClient(): GoogleGenAI {
-  if (!ai) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is missing');
-    }
-    ai = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-  }
-  return ai;
-}
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { message } = await req.json();
+    const { message, knowledge = "" } = await req.json();
 
-    if (!message) {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
-    }
-
-    const aiClient = getAIClient();
-
-    console.log("sending message to AI");
-    let replyText = "";
-    const models = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
-    let successful = false;
-
-    for (const model of models) {
+    let retries = 0;
+    while (retries < 3) {
       try {
         const chat = aiClient.chats.create({
-          model: model,
+          model: 'gemini-1.5-pro',
           config: {
-            systemInstruction: "You are a helpful and compassionate health service AI assistant. Emphasize medical education, safety, guides on logging EMR vitals, and do not diagnose or prescribe.",
+            systemInstruction: `${primeVitaSystemPrompt}\nCONSTITUTION: ${phase1Constitution}\nSERVICES: ${phase2Services}\nPORTALS: ${phase3Portals}\nAPPOINTMENT INTELLIGENCE: ${phase4Appointment}\nPATIENT JOURNEY: ${phase5PatientJourney}\nCLINICAL JOURNEY: ${phase6ClinicalJourney}\nRECRUITMENT INTELLIGENCE: ${phase7Recruitment}\nBILLING INTELLIGENCE: ${phase8Billing}\nEMR INTELLIGENCE: ${phase9Emr}\nMEDICAL INTELLIGENCE: ${phase10Medical}\nCUSTOMER SERVICE INTELLIGENCE: ${phase11CustomerService}\nVOICE AGENT INTELLIGENCE: ${phase12Voice}\nWHATSAPP AGENT INTELLIGENCE: ${phase13Whatsapp}\nADMINISTRATIVE INTELLIGENCE: ${phase14Admin}\nESCALATION PROTOCOLS: ${phase15Escalation}\nCONVERSATION LIBRARIES: ${phase16Conversation}\nDOCTOR COPILOT: ${phase17Doctor}\nNURSE COPILOT: ${phase18Nurse}\nCLINICAL SAFETY LAYER: ${phase19Safety}\nCONCLUSION V1.0: ${phase20Conclusion}\nAdditional Knowledge: ${knowledge}`,
           },
         });
+
         const response = await chat.sendMessage({ message });
-        if (response && response.text) {
-          replyText = response.text;
-          successful = true;
-          break;
+        return NextResponse.json({ reply: response.text });
+      } catch (error: any) {
+        if (error.status === 429 && retries < 2) {
+          retries++;
+          await sleep(2000 * Math.pow(2, retries)); // Exponential backoff
+          continue;
         }
-      } catch (err: any) {
-        console.warn(`Model ${model} failed in Route API:`, err.message || err);
+        throw error;
       }
     }
-
-    if (!successful) {
-      // Generate a highly caring patient-centered professional fallback response
-      const text = message.toLowerCase();
-      if (text.includes("fever") || text.includes("temp") || text.includes("hot")) {
-        replyText = "Thank you for sharing your symptoms. A fever is usually a natural response to help fight off an infection. Please monitor your temperature regularly, drink plenty of clear fluids, rest, and keep a log of your readings here in your EMR. If your temperature exceeds 103°F (39.4°C) or is accompanied by confusion, difficulty breathing, or severe head pain, please seek immediate emergency care.";
-      } else if (text.includes("bp") || text.includes("blood pressure") || text.includes("hypertension") || text.includes("heart")) {
-        replyText = "Monitoring your blood pressure is extremely important. Normal resting blood pressure is generally under 120/80 mmHg. Prior to measuring, please sit quietly for at least five minutes with your back supported and feet flat. Use the EMR Vital Signs tab to record your readings. If you experience crushing chest pain, unexplained shortness of breath, or numbness, please dial 911 or visit the nearest ER immediately.";
-      } else if (text.includes("pain") || text.includes("hurt") || text.includes("ache")) {
-        replyText = "I am sorry to hear that you are experiencing discomfort. Please let your clinical team know by logging the exact area of pain, its onset, and severity (1 to 10) in your Nursing Report or Patient Portal. Avoid strenuous activities. If the pain is sudden, unusually severe, or feels like pressure or tightness in your chest, seek emergency medical services right away.";
-      } else if (text.includes("hi") || text.includes("hello") || text.includes("help") || text.includes("hey")) {
-        replyText = "Hello! I am your virtual Telehealth Medical Assistant. I can explain general healthcare concepts, guide you on how to log measurements like your blood pressure, temperature, and fluid intake in your Patient Portal EMR, and point you to the right portal for your nurse or doctor. For security and clinical safety, remember that I do not prescribe medications. How can I assist you today?";
-      } else {
-        replyText = "Thank you for reaching out to your Telehealth Portal. To assist your care team best, please ensure your latest vital signs (temperature, blood pressure, pulse) and any daily notes are logged in your EMR. Your assigned nurse and doctor review these updates continuously to coordinate your home care plans. If you are experiencing high-risk symptoms or a medical emergency, please contact 911 immediately.";
-      }
-    }
-
-    return NextResponse.json({ reply: replyText });
   } catch (error: any) {
     console.error('Chat API error:', error);
-    // Explicitly return JSON, safely accessing error.message
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get response';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: error.status === 429 ? 'Rate limit exceeded, please try again later.' : 'Failed to process chat' },
+      { status: error.status || 500 }
+    );
   }
 }

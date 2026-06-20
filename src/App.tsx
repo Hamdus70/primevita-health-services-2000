@@ -31,13 +31,13 @@ import { PostHospitalRecoveryPage } from '@/pages/PostHospitalRecoveryPage';
 import { DementiaCarePage } from '@/pages/DementiaCarePage';
 import { PhysiotherapyPage } from '@/pages/PhysiotherapyPage';
 import { FAQPage } from '@/pages/FAQPage';
+import { TestimonialsPage } from '@/pages/TestimonialsPage';
 import { ReferralFormPage } from '@/pages/ReferralFormPage';
 import { ApplicationPortal } from '@/pages/ApplicationPortal';
 import ApplicationTracker from '@/pages/ApplicationTracker';
 import { RoleSwitcher } from '@/components/dev/RoleSwitcher';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Chatbot } from '@/components/chat/Chatbot';
-import { TelehealthChatWidget } from '@/components/TelehealthChatWidget';
 
 import TrackProgressPage from '@/pages/TrackProgressPage';
 import { Providers } from './app/providers';
@@ -50,7 +50,6 @@ export default function App() {
         <CommandPalette />
         <Chatbot />
         <RoleSwitcher />
-        <TelehealthChatWidget />
         <Toaster position="top-right" richColors />
         <Routes>
           {/* Public Website Routes */}
@@ -87,6 +86,7 @@ export default function App() {
           <Route path="/services/dementia-care" element={<><TopBar /><Header /><main className="flex-1"><DementiaCarePage /></main><Footer /></>} />
           <Route path="/services/physiotherapy" element={<><TopBar /><Header /><main className="flex-1"><PhysiotherapyPage /></main><Footer /></>} />
           <Route path="/faqs" element={<><TopBar /><Header /><main className="flex-1"><FAQPage /></main><Footer /></>} />
+          <Route path="/testimonials" element={<><TopBar /><Header /><main className="flex-1"><TestimonialsPage /></main><Footer /></>} />
           <Route path="/refer-patient" element={<><TopBar /><Header /><main className="flex-1"><ReferralFormPage /></main><Footer /></>} />
           <Route path="/contact" element={<><TopBar /><Header /><main className="flex-1"><ContactPage /></main><Footer /></>} />
           <Route path="/license" element={<><TopBar /><Header /><main className="flex-1"><LicensePage /></main><Footer /></>} />
