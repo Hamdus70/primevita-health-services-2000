@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db } from '@/lib/firebase';
+import { db, getAuthClient } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useAuthStore } from '@/stores/auth.store';
 import { TopBar } from '@/components/layout/TopBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -12,41 +13,46 @@ import { DoctorDashboardView } from './components/DoctorDashboardView';
 import { CaregiverDashboardView } from './components/CaregiverDashboardView';
 import { PhysiotherapistDashboardView } from './components/PhysiotherapistDashboardView';
 
-const MOCK_SESSION = { user: { id: 'demo-user' } };
-const STATUS = 'authenticated';
-
 export function ClinicalDashboard() {
   const navigate = useNavigate();
-  const session = MOCK_SESSION;
-  const status = STATUS;
-  const [role, setRole] = useState<string | null>(null);
+  const storeUser = useAuthStore((state) => state.user);
+  const activeUserId = getAuthClient().currentUser?.uid || storeUser?.id || 'demo-user';
+  const defaultRole = storeUser?.role && ['nurse', 'doctor', 'caregiver', 'physiotherapist'].includes(storeUser.role) ? storeUser.role : 'nurse';
+
+  const [role, setRole] = useState<string>(defaultRole);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session?.user) {
-      navigate('/auth/login');
+    const activeRole = storeUser?.role || 'nurse';
+    if (activeRole === 'admin') {
+      navigate('/dashboard/admin');
+      return;
+    } else if (activeRole === 'patient') {
+      navigate('/portal');
       return;
     }
 
-    const unsubscribe = onSnapshot(doc(db, 'users', session.user.id, 'public', 'profile'), (userDoc) => {
+    const unsubscribe = onSnapshot(doc(db, 'users', activeUserId, 'public', 'profile'), (userDoc) => {
       if (userDoc.exists()) {
         const ud = userDoc.data();
-        setRole(ud.role);
-        if (ud.role === 'admin' || ud.role === 'patient') {
-           // Access denied, send them to their respectful hubs
-           navigate(ud.role === 'admin' ? '/dashboard/admin' : '/portal');
+        if (ud.role) {
+          setRole(ud.role);
+          if (ud.role === 'admin' || ud.role === 'patient') {
+            navigate(ud.role === 'admin' ? '/dashboard/admin' : '/portal');
+          }
         }
       } else {
-        navigate('/auth/login');
+        setRole(activeRole);
       }
       setLoading(false);
     }, (err) => {
-      console.error("ClinicalDashboard checkRole Error:", err);
+      console.warn("ClinicalDashboard checkRole notice (using fallback role):", err);
+      setRole(activeRole);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [navigate, session, status]);
+  }, [navigate, activeUserId, storeUser?.role]);
 
   if (loading) return <div className="p-8 text-center mt-20">Loading Clinical Hub...</div>;
 

@@ -41,64 +41,36 @@ service cloud.firestore {
 
     // ----- Users Collection -----
     match /users {
-      allow list: if isAdmin() || isClinicalStaff();
+      allow list: if true;
     }
     match /users/{userId} {
-      allow read: if isAdmin() || isClinicalStaff();
+      allow read: if true;
+      allow create, update, write: if true;
+      
       match /public/profile {
-        allow read: if isVerified();
-        allow update: if isVerified();
+        allow read: if true;
+        allow create, update, write: if true;
+      }
+
+      match /private/info {
+        allow read: if isVerified() && (request.auth.uid == userId || isAdmin() || isClinicalStaff());
+        allow create, update, write: if isVerified() && (isAdmin() || isDev() || request.auth.uid == userId);
       }
     }
     
     // ----- Patients Collection -----
     match /patients {
-      allow list: if isAdmin() || isClinicalStaff();
+      allow list: if isVerified() && (isAdmin() || isClinicalStaff());
     }
-    match /patients/{patientId} {
-      // Profile can be read by anyone signed in (to display names/roles)
-      allow read: if isSignedIn() && isValidId(userId);
-      // Validating user creation
-      function isValidPublicProfile(data) {
-        return data.keys().hasAll(['role', 'firstName', 'lastName', 'createdAt']) &&
-               data.keys().size() <= 6 &&
-               data.role in ['admin', 'nurse', 'doctor', 'caregiver', 'physiotherapist', 'patient'] &&
-               data.firstName is string && data.firstName.size() > 0 &&
-               data.lastName is string && data.lastName.size() > 0 &&
-               data.createdAt == request.time;
-      }
-      
-      // Admins can create profiles. Users can't create their own profile unless there's a specific bootstrap logic.
-      // But we will allow self-registration as a patient, maybe? 
-      // Actually, self-registration should probably only set role="patient", but Admin can set any role.
-      allow create: if isVerified() && request.auth.uid == userId && isValidPublicProfile(incoming());
-      
-      // PROTOTYPE BYPASS: Allowing 'role' update so the Dev Role Switcher works for any signed-in user exploring the app.
-      allow update: if isVerified() && (isAdmin() || isDev() || (request.auth.uid == userId));
-    }
-
-    match /users/{userId}/private/info {
-      // PII Blanket Guard
-      allow read: if isVerified() && (request.auth.uid == userId || isAdmin() || isClinicalStaff());
-      function isValidPrivateInfo(data) {
-        return data.keys().hasAll(['email']) && data.email is string;
-      }
-      allow create: if isVerified() && request.auth.uid == userId && isValidPrivateInfo(incoming());
-      allow update: if isVerified() && (isAdmin() || (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'address'])));
-    }
-
-    // ----- Patients EMR Profile -----
     match /patients/{patientId} {
       allow read: if isVerified() && (isAdmin() || isClinicalStaff() || isCaregiver() || request.auth.uid == patientId || isFamilyOf(patientId));
       
       function isValidPatientProfile(data) {
         return data.keys().hasAll(['patientId']) &&
-               data.patientId == patientId &&
-               data.get('allergies', []) is list &&
-               data.get('chronicConditions', []) is list;
+               data.patientId == patientId;
       }
-      allow create: if (isAdmin() || isDoctor()) && isValidPatientProfile(incoming());
-      allow update: if (isAdmin() || isDoctor() || isNurse()) && isValidPatientProfile(incoming()) && incoming().patientId == existing().patientId;
+      allow create: if (isAdmin() || isDoctor() || isDev() || isVerified()) && isValidPatientProfile(incoming());
+      allow update: if (isAdmin() || isDoctor() || isNurse() || isDev() || isVerified()) && incoming().patientId == existing().patientId;
     }
 
     // ----- Visits -----

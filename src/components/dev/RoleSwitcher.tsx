@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getDb } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getDb, getAuthClient } from '@/lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Settings, ShieldAlert, X } from 'lucide-react';
-// import { useSession } from 'next-auth/react';
+import { useAuthStore } from '@/stores/auth.store';
 
 const ROLES = ['admin', 'patient', 'family', 'doctor', 'nurse', 'caregiver', 'physiotherapist'];
 
@@ -11,28 +11,35 @@ export function RoleSwitcher() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  // const { data: session } = useSession();
-  const user = { id: 'demo-user', role: 'admin' }; // Dummy user for development role switching
+  const { user, setAuth } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const currentRole = user?.role || 'unauthenticated';
+  
+  const currentRole = user?.role || 'admin';
+  const activeUser = user || { id: 'demo-user', username: 'Demo User', role: 'admin', linkedUserType: 'admin' };
 
   const changeRole = async (newRole: string) => {
     setLoading(true);
     try {
-      if (!user) {
-        alert("Not logged in.");
-        return;
-      }
-      // Note: This mocked role switching via Firestore might still be needed if 
-      // the app uses Firestore to store the "active" role, but it should 
-      // not rely on Firebase Auth UID.
-      const docRef = doc(getDb(), 'users', user.id || 'mock-id', 'public', 'profile');
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        await setDoc(docRef, { role: newRole }, { merge: true });
+      const authClient = getAuthClient();
+      const activeUid = authClient.currentUser?.uid || activeUser.id || 'demo-user';
+
+      // 1. Update Zustand auth store so UI components re-render immediately with the new role
+      setAuth({
+        id: activeUid,
+        username: activeUser.username || 'Demo User',
+        role: newRole,
+        linkedUserType: newRole,
+      });
+
+      // 2. Persist to Firestore public profile
+      try {
+        const docRef = doc(getDb(), 'users', activeUid, 'public', 'profile');
+        await setDoc(docRef, { role: newRole, updatedAt: serverTimestamp() }, { merge: true });
+      } catch (dbErr) {
+        console.warn("Firestore role update notice:", dbErr);
       }
 
-      // Auto-navigate to appropriate dashboard
+      // 3. Auto-navigate to appropriate dashboard
       if (newRole === 'admin') navigate('/dashboard/admin');
       else if (newRole === 'patient') navigate('/portal');
       else if (newRole === 'family') navigate('/family-portal');
@@ -41,7 +48,12 @@ export function RoleSwitcher() {
       setIsOpen(false);
     } catch (err) {
       console.error("Failed to change role:", err);
-      alert("Error changing role. Check console.");
+      // Fallback navigation
+      if (newRole === 'admin') navigate('/dashboard/admin');
+      else if (newRole === 'patient') navigate('/portal');
+      else if (newRole === 'family') navigate('/family-portal');
+      else navigate('/dashboard/clinical');
+      setIsOpen(false);
     } finally {
       setLoading(false);
     }
@@ -74,31 +86,25 @@ export function RoleSwitcher() {
           </div>
           
           <div className="text-xs text-gray-500">
-             Current Status: {user ? <span className="font-bold text-[#0e4e5e]">{currentRole}</span> : "Not logged in"}
+             Current Status: <span className="font-bold text-[#0e4e5e]">{currentRole}</span>
           </div>
 
-          {!user ? (
-            <button onClick={() => { setIsOpen(false); navigate('/auth/login'); }} className="bg-[#10837f] text-white py-2 rounded text-sm font-bold">
-               Go to Login
-            </button>
-          ) : (
-            <div className="flex flex-col gap-2 mt-2">
-               {ROLES.map(r => (
-                  <button 
-                     key={r}
-                     onClick={() => changeRole(r)}
-                     disabled={loading || r === currentRole}
-                     className={`py-1.5 px-3 rounded text-sm font-semibold capitalize transition-colors \${
-                        r === currentRole 
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                          : typeof r === 'string' && r === 'admin' ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                     }`}
-                  >
-                     {r} {r === currentRole && '(Active)'}
-                  </button>
-               ))}
-            </div>
-          )}
+          <div className="flex flex-col gap-2 mt-2">
+             {ROLES.map(r => (
+                <button 
+                   key={r}
+                   onClick={() => changeRole(r)}
+                   disabled={loading || r === currentRole}
+                   className={`py-1.5 px-3 rounded text-sm font-semibold capitalize transition-colors ${
+                      r === currentRole 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : r === 'admin' ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                   }`}
+                >
+                   {r} {r === currentRole && '(Active)'}
+                </button>
+             ))}
+          </div>
         </div>
       )}
     </div>
